@@ -163,3 +163,16 @@
 - README rewritten: architecture diagram, results table, CoCo skills table, features, runbook, known limits, roadmap.
 - New: `docs/DATASETS.md` (every dataset with its licence; Set A text never committed), `docs/DECK_OUTLINE.md` (10 slides, each headed by its rubric line, including the skills-workflow slide).
 - `docs/DEMO_SCRIPT.md` updated: PDF step, Patient 360, final numbers, recording checklist.
+
+## 2026-10-04 - Set A scored, app polish, judge login
+- **Set A scoring** (`eval/setA/02_score.sql`; labels in `eval/setA/setA_labels.csv`, uid + 4 label columns only).
+  - Blind, frozen in `EVAL.SETA_SUMMARY_BLIND`: system 91.7% (recall 17/24), AI-only 92.5% (24/24, 9 false alarms), keyword 90.8% (13/24).
+  - Rule gap found: real X-rays describe masses and mediastinal contours that extraction typed as OTHER with a CT recommendation. Fix: on an X-ray, any non-negated finding with a CT/PET/biopsy recommendation opens a loop.
+  - After the fix (no longer blind): system 95.0%, recall 21/24, precision 0.875. Sets B and C unchanged (36/36; 694/700, 0 false greens).
+- **Priority** spread: elapsed up to 900, context up to 50, tier step 1000; `tests/priority_scale.sql` passes (2950 < 3000). Days overdue is blank for AMBER.
+- **App:** Patient 360 dropdown (rank 1 default) with sections and a vertical timeline; Results leads with the comparison charts (false greens in red), official runs only, all runs in an expander, quotes to one decimal; Letters rename. Light theme (`app/.streamlit/config.toml`), status pills, friendly worklist with row click to Patient 360, KPI cards, Demo controls expander. Smoke test 20/20 plus a row-click jump check. Rollback tag `pre-ui-polish`.
+- **Judge login** (`sql/15_judge_access.sql`, no password in any file):
+  - role FFU_JUDGE (usage on FFU_APP_WH, FFU, the APP/SEC schemas, the app and the agent; SELECT on SEC.LOOPS_V, which is masked for judges);
+  - user JUDGE_RUZEN (default role FFU_JUDGE, MUST_CHANGE_PASSWORD FALSE) with the user-level policy FFU.SEC.JUDGE_AUTH_POLICY (MFA_ENROLLMENT OPTIONAL);
+  - credit guard: the app and the judge run on FFU_APP_WH, capped by FFU_APP_RM at 5 credits/day (suspend immediately).
+  - Tested by logging in as JUDGE_RUZEN: role FFU_JUDGE, app visible, masked rows only; raw tables and CREATE are denied.

@@ -21,7 +21,7 @@ CREATE OR REPLACE SECURE VIEW SEC.LOOPS_V AS
 WITH who AS (
   -- Primary role decides; secondary roles must not widen access.
   SELECT CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SYSADMIN', 'FFU_APP_OWNER') AS is_admin,
-         CURRENT_ROLE() = 'FFU_ANALYST' AS is_analyst)
+         CURRENT_ROLE() IN ('FFU_ANALYST', 'FFU_JUDGE') AS is_analyst)  -- judges see the masked analyst view
 SELECT
   s.loop_id, s.clinic_id, s.finding_type, s.nodule_type, s.avg_mm, s.aorta_cm, s.tier, s.pathway, s.action,
   s.report_date, s.due_start, s.due_end, s.status, IFF(s.status = 'RED', s.days_overdue, 0) AS days_overdue, s.priority:score::FLOAT AS priority_score,
