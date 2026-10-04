@@ -158,3 +158,8 @@
 3. **Marketplace check (10 min, done, not mounted).** `Synthetic Healthcare Data - Clinical and Claims` (Snowflake Virtual Hands-On Labs, GZSTZL7M0Q6): free (is_monetized false), STANDARD terms, regions ALL, ready for import, Synthea-based, with PATIENTS, ENCOUNTERS, CLAIMS, PAYERS and PROVIDERS in SYNTHEA.SILVER. Getting it requires accepting Marketplace terms, so it waits for the owner's OK. If added, it would be the payer's claims backdrop only.
 4. **ROI calculator page (done).** Every input is editable and shows its source (Nodule Net 37% and 74%, East Alabama 39% to 68% and about $9,000 a month, Gould 2015 about 31% nodule rate). The CT volume and price per exam are labelled ASSUMPTION. The achieved rate defaults to this project's SIMULATED 78.8%. Headless smoke test: 19/19.
 
+
+## 2026-10-04 - Block 5 (packaging, started 17:43 IST)
+- README rewritten: architecture diagram, results table, CoCo skills table, features, runbook, known limits, roadmap.
+- New: `docs/DATASETS.md` (every dataset with its licence; Set A text never committed), `docs/DECK_OUTLINE.md` (10 slides, each headed by its rubric line, including the skills-workflow slide).
+- `docs/DEMO_SCRIPT.md` updated: PDF step, Patient 360, final numbers, recording checklist.
