@@ -57,7 +57,7 @@ Patients with known cancer go to **ONCOLOGY_SURVEILLANCE**. Patients who are imm
 - Communication (clinician acknowledged, patient notified) is tracked separately from completion.
 
 ## 7. Priority (not "risk")
-- Score = tier points (tier 1: 300, tier 2: 200, tier 3: 100), plus time points (share of the due window elapsed x 50, capped at 100), plus context points (age 65 or over +5; current smoker +5, former +3).
+- Score = tier points (tier 1: 3000, tier 2: 2000, tier 3: 1000), plus time points (share of the due window elapsed x 50, capped at 100), plus context points (age 65 or over +5; current smoker +5, former +3). The bands never overlap: the highest tier-2 score is 2110, below the lowest tier-1 score of 3000 (test: `tests/priority_scale.sql`).
 - A TB history is shown as context only and never raises priority.
 - Subsolid nodules in never-smoker women are never downgraded (Bai C et al., Asia consensus 2016, https://pubmed.ncbi.nlm.nih.gov/26923625).
 

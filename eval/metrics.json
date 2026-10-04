@@ -1,0 +1,18 @@
+﻿{
+    "protocol":  "Official runs only from the CTRL.DEMO_RESET(TRUE) state: sim_date 2026-10-04, no demo reports or claims, no live-compiled rules.",
+    "dataset":  "Set C: synthetic, 700 index reports from 2,000 patients, hidden answer key written before report text",
+    "run_at":  "2026-10-03 23:26:40.225",
+    "label":  "official-v1",
+    "state":  "clean DEMO_RESET(TRUE) state",
+    "loop_status":  {
+                        "n":  700,
+                        "correct":  694,
+                        "accuracy":  0.9914
+                    },
+    "safety":  {
+                   "false_green":  0,
+                   "false_green_upper95":  0.0261
+               },
+    "missed_loops":  1,
+    "quote_verified_rate":  1
+}

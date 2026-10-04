@@ -15,7 +15,7 @@ description: "Audit a follow-up loop or a patient. Recomputes red/amber/green st
 | --- | --- | --- |
 | Audit (one call per id) | `CALL FFU.CORE.AUDIT_LOOP('<id>');` | `LOOP_ID, APP_STATUS, AUDIT_STATUS, MATCH, RULE, INDEX_CITATION, EVIDENCE, COMMUNICATION` |
 | Move the clock and fire the alert | `CALL FFU.CTRL.ADVANCE_CLOCK('<YYYY-MM-DD>', '<P1,P2 or ALL>');` | `LOOP_ID, PATIENT_ID, TIER, MESSAGE, SIM_DATE, FIRED_AT` |
-| Current loop view | `CALL FFU.CORE.SHOW_LOOPS('<id or WORKLIST>');` | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, STATUS_REASON, PRIORITY_SCORE, DUE_END, DAYS_OVERDUE, CLINICIAN_ACKED, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, SIM_DATE` |
+| Current loop view | `CALL FFU.CORE.SHOW_LOOPS('<id or WORKLIST>');` | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, STATUS_REASON, PRIORITY_SCORE, PRIORITY_BREAKDOWN, DUE_END, DAYS_OVERDUE, CLINICIAN_ACKED, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, QA_FLAG, SIM_DATE` |
 | Refresh after a MISMATCH (once) | `ALTER DYNAMIC TABLE FFU.CORE.LOOP_STATUS REFRESH;` | - |
 
 ## Steps
@@ -39,3 +39,6 @@ description: "Audit a follow-up loop or a patient. Recomputes red/amber/green st
 ## Rules
 - Quote only from tool output. Never invent a citation.
 - Status changes only through the rules; a cancellation needs a reason plus clinician sign-off.
+
+## Reply length
+Keep the reply short: at most about 15 lines plus one compact table. No preamble, no restating the steps, no long explanations. Long replies get cut off by network errors.

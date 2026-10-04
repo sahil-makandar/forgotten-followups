@@ -6,23 +6,33 @@
 USE WAREHOUSE COMPUTE_WH;
 USE DATABASE FFU;
 
+-- One fixed card per loop, shared by PROCESS_NEW_REPORTS and SHOW_LOOPS (same columns, same order).
+CREATE OR REPLACE VIEW CORE.LOOP_CARD AS
+SELECT loop_id, patient_id, finding_type,
+  COALESCE(avg_mm || ' mm (' || long_mm || ' x ' || short_mm || ')', aorta_cm || ' cm', '-') AS size,
+  tier, pathway, status, status_reason, priority:score::FLOAT AS priority_score,
+  priority:tier_points::STRING || ' tier + ' || priority:time_points::STRING || ' time ('
+    || ROUND(priority:elapsed_share::FLOAT * 100) || '% of due window) + ' || priority:context_points::STRING || ' context'
+    || IFF(ARRAY_SIZE(priority:notes) > 0, ' [' || ARRAY_TO_STRING(priority:notes::ARRAY, '; ') || ']', '') AS priority_breakdown,
+  due_end, days_overdue, clinician_acked, patient_notified, quote, quote_verified, qa_flag, sim_date, report_id
+FROM CORE.LOOP_STATUS;
+
 -- Intake: extract new reports, apply rules, refresh, and return the loops created by this run.
 CREATE OR REPLACE PROCEDURE CORE.PROCESS_NEW_REPORTS()
 RETURNS TABLE (loop_id STRING, patient_id STRING, finding_type STRING, size STRING, tier NUMBER, pathway STRING,
-               status STRING, priority_score FLOAT, due_end DATE, patient_notified BOOLEAN, quote STRING,
-               quote_verified BOOLEAN, status_reason STRING, qa_flag STRING)
+               status STRING, status_reason STRING, priority_score FLOAT, priority_breakdown STRING, due_end DATE,
+               days_overdue NUMBER, clinician_acked BOOLEAN, patient_notified BOOLEAN, quote STRING, quote_verified BOOLEAN,
+               qa_flag STRING, sim_date DATE)
 LANGUAGE SQL AS
 $$
 DECLARE t0 TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()::TIMESTAMP_NTZ; res RESULTSET;
 BEGIN
   CALL CORE.RUN_PIPELINE();
-  res := (SELECT s.loop_id, s.patient_id, s.finding_type,
-                 COALESCE(s.avg_mm || ' mm (' || s.long_mm || ' x ' || s.short_mm || ')', s.aorta_cm || ' cm'),
-                 s.tier, s.pathway, s.status, s.priority:score::FLOAT, s.due_end, s.patient_notified,
-                 s.quote, s.quote_verified, s.status_reason, s.qa_flag
-          FROM CORE.LOOP_STATUS s
-          WHERE s.report_id IN (SELECT report_id FROM AI.EXTRACTIONS WHERE extracted_at >= :t0)
-          ORDER BY s.tier, s.priority:score::FLOAT DESC);
+  -- Loops from reports extracted in this run, or landed in the last 15 minutes (the Task may have processed them first).
+  res := (SELECT * EXCLUDE (report_id) FROM CORE.LOOP_CARD c
+          WHERE c.report_id IN (SELECT report_id FROM AI.EXTRACTIONS WHERE extracted_at >= :t0)
+             OR c.report_id IN (SELECT report_id FROM RAW.REPORTS WHERE loaded_at >= DATEADD(minute, -15, :t0) AND set_name <> 'C')
+          ORDER BY c.priority_score DESC);
   RETURN TABLE(res);
 END;
 $$;
@@ -106,20 +116,16 @@ $$;
 -- Loops for a patient or loop id (or ALL red/amber when ID = 'WORKLIST').
 CREATE OR REPLACE PROCEDURE CORE.SHOW_LOOPS(ID STRING)
 RETURNS TABLE (loop_id STRING, patient_id STRING, finding_type STRING, size STRING, tier NUMBER, pathway STRING,
-               status STRING, status_reason STRING, priority_score FLOAT, due_end DATE, days_overdue NUMBER,
-               clinician_acked BOOLEAN, patient_notified BOOLEAN, quote STRING, quote_verified BOOLEAN, sim_date DATE)
+               status STRING, status_reason STRING, priority_score FLOAT, priority_breakdown STRING, due_end DATE,
+               days_overdue NUMBER, clinician_acked BOOLEAN, patient_notified BOOLEAN, quote STRING, quote_verified BOOLEAN,
+               qa_flag STRING, sim_date DATE)
 LANGUAGE SQL AS
 $$
 DECLARE res RESULTSET;
 BEGIN
-  res := (SELECT loop_id, patient_id, finding_type,
-                 COALESCE(avg_mm || ' mm (' || long_mm || ' x ' || short_mm || ')', aorta_cm || ' cm'),
-                 tier, pathway, status, status_reason, priority:score::FLOAT, due_end, days_overdue,
-                 clinician_acked, patient_notified, quote, quote_verified, sim_date
-          FROM CORE.LOOP_STATUS
+  res := (SELECT * EXCLUDE (report_id) FROM CORE.LOOP_CARD
           WHERE patient_id = :ID OR loop_id = :ID OR (:ID = 'WORKLIST' AND status IN ('RED','AMBER'))
-          ORDER BY tier, priority:score::FLOAT DESC, days_overdue DESC
-          LIMIT 50);
+          ORDER BY priority_score DESC, days_overdue DESC LIMIT 50);
   RETURN TABLE(res);
 END;
 $$;

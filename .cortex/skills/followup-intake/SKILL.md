@@ -14,8 +14,8 @@ description: "Ingest new radiology reports and turn them into tracked follow-up 
 | Purpose | Statement | Returned columns |
 | --- | --- | --- |
 | Land one file | `CALL FFU.CORE.INGEST_REPORT('<REPORT_ID>', '<PATIENT_ID>', '<YYYY-MM-DD>', '<MODALITY>', '<CPT>', '<FACILITY>', $$<file text>$$);` | `INGEST_REPORT` (a message) |
-| Process | `CALL FFU.CORE.PROCESS_NEW_REPORTS();` | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, PRIORITY_SCORE, DUE_END, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, STATUS_REASON, QA_FLAG` |
-| If PROCESS returned 0 rows | `CALL FFU.CORE.SHOW_LOOPS('<PATIENT_ID>');` (once per patient landed) | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, STATUS_REASON, PRIORITY_SCORE, DUE_END, DAYS_OVERDUE, CLINICIAN_ACKED, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, SIM_DATE` |
+| Process | `CALL FFU.CORE.PROCESS_NEW_REPORTS();` | same columns as SHOW_LOOPS below |
+| If PROCESS returned 0 rows | `CALL FFU.CORE.SHOW_LOOPS('<PATIENT_ID>');` (once per patient landed) | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, STATUS_REASON, PRIORITY_SCORE, PRIORITY_BREAKDOWN, DUE_END, DAYS_OVERDUE, CLINICIAN_ACKED, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, QA_FLAG, SIM_DATE` |
 
 `PROCESS_NEW_REPORTS` may return 0 rows if the background Task already processed the report. That is normal; use `SHOW_LOOPS`.
 
@@ -26,12 +26,21 @@ description: "Ingest new radiology reports and turn them into tracked follow-up 
    - If a name doesn't fit, ask the user. Don't guess.
 2. Read each file and call `INGEST_REPORT` with the text exactly as-is. If the text contains `$$`, stop and tell the user.
 3. Call `PROCESS_NEW_REPORTS` once. If it returns 0 rows, call `SHOW_LOOPS` for each patient.
-4. Print a table: loop_id, patient, finding and size, tier, priority, due date, status, patient told, and quote (verified yes/no). Then one line per loop:
+4. Print one compact block per loop, ALWAYS with these fields copied from the result (never `--`; if a value is NULL, write `n/a`):
+   - loop_id, patient, finding and size, tier, status, due date;
+   - **Priority:** `PRIORITY_SCORE` = `PRIORITY_BREAKDOWN`;
+   - **Clinician acknowledged:** `CLINICIAN_ACKED` - **Patient notified:** `PATIENT_NOTIFIED`;
+   - **Quote:** `QUOTE` (verified: `QUOTE_VERIFIED`).
+
+   Then add these flags where they apply:
    - `QUOTE_VERIFIED = FALSE`: "QUOTE NOT FOUND IN SOURCE - review before relying on this loop".
    - `PATHWAY <> STANDARD`: rerouted, with `STATUS_REASON`.
    - `QA_FLAG` set: a QA note for the radiologist (never change the recommendation).
-   - `PATIENT_NOTIFIED = FALSE`: "patient not told".
+   - `PATIENT_NOTIFIED = FALSE`: "patient not told". `CLINICIAN_ACKED = FALSE`: "clinician has not acknowledged".
 
 ## Rules
 - AI only extracts and quotes. Status and priority come from the SQL rules (`sql/07_rules.sql`, `docs/RULE_SHEET.md`).
 - Never diagnose; never send anything to a patient.
+
+## Reply length
+Keep the reply short: at most about 15 lines plus one compact table. No preamble, no restating the steps, no long explanations. Long replies get cut off by network errors.

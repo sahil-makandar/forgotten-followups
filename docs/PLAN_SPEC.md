@@ -55,7 +55,7 @@ flowchart LR
 - **Routing:** known cancer, immunosuppression, age <35 or screening enrolment go to a REROUTED pathway with the reason shown.
 - **Two halves:** communication (ack + notified) and completion are tracked separately.
 - **Closure:** CPT 71250/71260/71270 or PET/biopsy inside the window closes a CT loop; 71271 (LDCT) is accepted only for screening-pathway loops; CXR 71045/71046 never closes one and the reason is shown. A payer-only match gives AMBER plus an outside-report request. A hospital report plus AI_FILTER "discusses original finding" gives GREEN. CANCELLED requires a reason and a sign-off. Closing a surveillance loop opens the next one.
-- **Priority UDF (Snowpark Python):** tier points (300/200/100) + elapsed share of the due window x 50 (cap 100) + context (age 65+, smoking); returns JSON with the breakdown. TB history is context only; never-smoker women are not downgraded. A QA flag is raised if the radiologist's recommendation differs from the guideline.
+- **Priority UDF (Snowpark Python):** tier bands (3000/2000/1000, never overlapping; see tests/priority_scale.sql) + elapsed share of the due window x 50 (cap 100) + context (age 65+, smoking); returns JSON with the breakdown. TB history is context only; never-smoker women are not downgraded. A QA flag is raised if the radiologist's recommendation differs from the guideline.
 
 ## 5. Object inventory (as built)
 `FFU.{RAW, KEY, AI, CORE, CTRL, APP, SEC, EVAL}`.

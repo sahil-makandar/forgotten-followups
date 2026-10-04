@@ -39,3 +39,6 @@ Run without asking if the user said "reset the demo"; otherwise confirm first.
 
 ## Output
 Print the DEMO_STATE table as returned. Then one line: "Demo ready" if every RESULT is PASS (INFO is fine only for thyroid_loops when extensions were kept), else "NOT READY: <failed checks>". Point the user to `docs/DEMO_SCRIPT.md`.
+
+## Reply length
+Keep the reply short: at most about 15 lines plus one compact table. No preamble, no restating the steps, no long explanations. Long replies get cut off by network errors.

@@ -24,7 +24,7 @@ The only SQL you write yourself is the rule file in step 3. Everything else is o
 
 | Purpose | Statement | Returned columns |
 | --- | --- | --- |
-| Eval | `CALL FFU.EVAL.RUN_EVAL('<label>');` | `LABEL, N, CORRECT, ACCURACY, FALSE_GREEN, FALSE_GREEN_UPPER95, MISSED_LOOPS, QUOTE_VERIFIED_RATE` |
+| Eval | `CALL FFU.EVAL.RUN_EVAL('<label>');` | `LABEL, OFFICIAL, STATE_NOTE, N, CORRECT, ACCURACY, FALSE_GREEN, FALSE_GREEN_UPPER95, MISSED_LOOPS, QUOTE_VERIFIED_RATE`. Runs with a compiled rule installed are `OFFICIAL = FALSE` by design; say "unofficial (live rule installed)". Official numbers come only from the DEMO_RESET(TRUE) state, via `eval/metrics.json`. |
 | Install | shell: `snow sql -c hospital -f sql/rules/<rule>.sql` | - |
 | Refresh | `ALTER DYNAMIC TABLE FFU.CORE.EXTRA_RULES REFRESH;` then `CALL FFU.CORE.PROCESS_NEW_REPORTS();` | as in followup-intake (0 rows is normal) |
 | Test | shell: `snow sql -c hospital -f tests/<rule>/02_check.sql` | `REPORT_ID, WHY, EXPECT_LOOP, GOT_LOOP, EXPECT_TIER, GOT_TIER, RESULT` |
@@ -52,7 +52,7 @@ The rule may read ONLY these columns:
    - `INSERT INTO FFU.CORE.CLOSURE_CODES ...` for the correct test(s), plus `closes = FALSE` rows for common wrong tests, with a note. Guard with `WHERE NOT EXISTS`.
    - A header comment citing the guideline (URL) in our own words.
 
-   Show the file to the user before running it.
+   **STOP HERE.** Show the full file, then ask exactly: "Install this rule? Reply yes to install, or tell me what to change." End your turn. Do NOT run the install, refresh, tests or eval until the user replies yes. If the user asks for changes, edit the file, show it again, and stop again.
 
 4. **Install and refresh:**
    - Run the file with `snow sql -c hospital -f sql/rules/<rule_name>.sql`.
@@ -74,3 +74,6 @@ Source: Hoang JK et al., J Am Coll Radiol 2015;12:143-150, https://www.acr.org/C
 - Ultrasound if the nodule is 1.5 cm or more (age 35 or over), or 1.0 cm or more (under 35), or any size with suspicious features (abnormal lymph nodes, local invasion, PET avidity).
 - Tier 1 when suspicious, otherwise tier 2.
 - Closed by thyroid ultrasound, CPT 76536, within 3 months.
+
+## Reply length
+Keep the reply short: at most about 15 lines plus one compact table. No preamble, no restating the steps, no long explanations. Long replies get cut off by network errors.

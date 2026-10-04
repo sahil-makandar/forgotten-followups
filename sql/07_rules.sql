@@ -34,7 +34,8 @@ CREATE OR REPLACE FUNCTION CORE.PRIORITY(tier NUMBER, elapsed FLOAT, age NUMBER,
 RETURNS OBJECT LANGUAGE PYTHON IMMUTABLE RUNTIME_VERSION = '3.11' HANDLER = 'priority'
 AS $$
 def priority(tier, elapsed, age, smoking, sex, nodule_type, tb_history):
-    tier_pts = {1: 300, 2: 200, 3: 100}.get(int(tier) if tier is not None else 3, 100)
+    # Tier bands of 1000 so time (max 100) + context (max 10) can never lift a loop into a higher tier.
+    tier_pts = {1: 3000, 2: 2000, 3: 1000}.get(int(tier) if tier is not None else 3, 1000)
     e = 0.0 if elapsed is None else max(0.0, min(float(elapsed), 2.0))
     time_pts = round(e * 50, 1)
     ctx, notes = 0, []
