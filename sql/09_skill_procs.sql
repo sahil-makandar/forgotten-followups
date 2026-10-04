@@ -162,7 +162,8 @@ BEGIN
   res := (WITH c AS (
       SELECT 'sim_date' n, (SELECT MAX(sim_date) FROM CTRL.SIM_DATE)::STRING a, '2026-10-04' e UNION ALL
       SELECT 'demo_reports', (SELECT COUNT(*) FROM RAW.REPORTS WHERE set_name = 'DEMO')::STRING, '0' UNION ALL
-      SELECT 'demo_alerts', (SELECT COUNT(*) FROM APP.ALERTS WHERE patient_id LIKE 'P099%')::STRING, '0' UNION ALL
+      -- Hero only: the decoy P09902 is already overdue at the demo start, so the hourly alert may legitimately fire for it.
+      SELECT 'hero_alerts_P09901', (SELECT COUNT(*) FROM APP.ALERTS WHERE patient_id = 'P09901')::STRING, '0' UNION ALL
       SELECT 'demo_outside_requests', (SELECT COUNT(*) FROM APP.OUTSIDE_REPORT_REQUESTS WHERE patient_id LIKE 'P099%')::STRING, '0' UNION ALL
       SELECT 'decoy_loops_P09902', (SELECT COUNT(*) FROM CORE.LOOP_STATUS WHERE patient_id = 'P09902')::STRING, '1' UNION ALL
       SELECT 'demo_claims_in_share', (SELECT COUNT(*) FROM PAYER_SHARE.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS WHERE event_id LIKE 'EDEMO%')::STRING, '0' UNION ALL
