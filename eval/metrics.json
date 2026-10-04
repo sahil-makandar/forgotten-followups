@@ -264,9 +264,9 @@
     "cost":  {
                  "window":  "whole build day so far (generation + extraction + AI_FILTER + baselines + agent tests), METERING_HISTORY",
                  "ai_function_credits":  "2.422",
-                 "warehouse_credits":  "2.071",
+                 "warehouse_credits":  "2.368",
                  "agent_credits":  "0.636",
-                 "app_container_credits":  "0.298",
+                 "app_container_credits":  "0.380",
                  "ai_reports_processed":  1890,
                  "ai_credits_per_1000_reports_upper_bound":  1.28,
                  "note":  "Upper bound: includes report generation, baselines and tests, not only production extraction."
@@ -277,6 +277,18 @@
                     "single_report_seconds":  3.5,
                     "source":  "INFORMATION_SCHEMA.QUERY_HISTORY for INSERT INTO AI.EXTRACTIONS"
                 },
+    "simulated_impact":  {
+                             "label":  "SIMULATED - synthetic Set C hospital, not a clinical result (eval/03_simulated_impact.sql)",
+                             "loops_due":  320,
+                             "completion_hospital_only_view":  0.359,
+                             "completion_with_payer_share":  0.509,
+                             "completion_with_worklist_recall_simulated":  0.788,
+                             "published_baseline":  0.37,
+                             "published_after_tracking":  0.74,
+                             "median_days_to_close_observed":  74,
+                             "median_days_to_close_with_recall_simulated":  75,
+                             "assumption":  "Recall recovers 59% of not-done loops, derived from Nodule Net (37% to 74%); recalled loops close 30 days after the due date."
+                         },
     "failure_cases":  [
                           {
                               "id":  "R00519 (Set C), RA9 (Set A)",

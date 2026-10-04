@@ -12,6 +12,7 @@ $setb = Q "SELECT COUNT(*) AS findings, COUNT_IF(status_ok) AS status_correct, C
 $traps = Q "SELECT trap, BOOLAND_AGG(status_ok) AS passed FROM FFU.EVAL.SETB_RESULTS GROUP BY trap ORDER BY trap"
 $cost = Q "SELECT ROUND(SUM(IFF(service_type = 'AI_FUNCTIONS', credits_used, 0)), 3) AS ai_credits, ROUND(SUM(IFF(service_type = 'WAREHOUSE_METERING', credits_used, 0)), 3) AS wh_credits, ROUND(SUM(IFF(service_type = 'CORTEX_AGENTS', credits_used, 0)), 3) AS agent_credits, ROUND(SUM(IFF(service_type = 'SNOWPARK_CONTAINER_SERVICES', credits_used, 0)), 3) AS app_credits, (SELECT COUNT(*) FROM FFU.AI.EXTRACTIONS) AS extractions, (SELECT COUNT(*) FROM FFU.RAW.REPORTS WHERE gen_model LIKE 'claude%') AS generated FROM SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY WHERE start_time >= '2026-10-03'"
 $c = $cost[0]
+$sim = (Q "SELECT * FROM FFU.EVAL.SIMULATED_IMPACT")[0]
 $procReports = [int]$c.EXTRACTIONS + [int]$c.GENERATED
 
 $out = [ordered]@{
@@ -37,6 +38,16 @@ $out = [ordered]@{
     ai_credits_per_1000_reports_upper_bound = [math]::Round([double]$c.AI_CREDITS / $procReports * 1000, 2)
     note = 'Upper bound: includes report generation, baselines and tests, not only production extraction.' }
   latency = [ordered]@{ batch_822_reports_seconds = 17.2; per_report_in_batch_ms = 21; single_report_seconds = 3.5; source = 'INFORMATION_SCHEMA.QUERY_HISTORY for INSERT INTO AI.EXTRACTIONS' }
+  simulated_impact = [ordered]@{
+    label = 'SIMULATED - synthetic Set C hospital, not a clinical result (eval/03_simulated_impact.sql)'
+    loops_due = $sim.LOOPS_DUE
+    completion_hospital_only_view = [double]$sim.HOSPITAL_ONLY_COMPLETION
+    completion_with_payer_share = [double]$sim.WITH_PAYER_SHARE_COMPLETION
+    completion_with_worklist_recall_simulated = [double]$sim.WITH_RECALL_COMPLETION_SIMULATED
+    published_baseline = 0.37; published_after_tracking = 0.74
+    median_days_to_close_observed = [double]$sim.MEDIAN_DAYS_TO_CLOSE_OBSERVED
+    median_days_to_close_with_recall_simulated = [double]$sim.MEDIAN_DAYS_TO_CLOSE_WITH_RECALL_SIMULATED
+    assumption = 'Recall recovers 59% of not-done loops, derived from Nodule Net (37% to 74%); recalled loops close 30 days after the due date.' }
   failure_cases = @(
     [ordered]@{ id = 'R00519 (Set C), RA9 (Set A)'; what = 'Extraction JSON failed schema validation on every retry, so no loop opened (the 1 missed Set C loop).'; why = 'Model output did not match the required schema for one finding.'; mitigation = 'CORE.EXTRACTION_ERRORS review queue shown in the app; never silently dropped.' },
     [ordered]@{ id = 'R00001 (Set C)'; what = 'Index chest X-ray says mass-like opacity; follow-up CT says 8 mm nodule stable. AI_FILTER did not link them, so the loop stayed RED (needs review) instead of GREEN.'; why = 'Different wording for the same finding across modalities.'; mitigation = 'Safe direction (never a false green); shown as needs review. 5 of 700 Set C loops.' },
