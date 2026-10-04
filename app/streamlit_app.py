@@ -56,7 +56,7 @@ def sim_date() -> str:
 # ---------- sidebar: demo clock and refresh ----------
 st.sidebar.title("Forgotten Follow-ups")
 st.sidebar.caption("Built on Snowflake. Synthetic data only. Not a diagnostic tool.")
-page = st.sidebar.radio("Page", ["Worklist", "Patient 360", "Copilot chat", "Alerts", "Results"])
+page = st.sidebar.radio("Page", ["Worklist", "Patient 360", "Copilot chat", "Alerts", "Results", "ROI calculator"])
 st.sidebar.divider()
 st.sidebar.markdown(f"**Demo date:** {sim_date()}")
 new_date = st.sidebar.date_input("Move demo clock to", value=pd.to_datetime(sim_date()))
@@ -231,3 +231,33 @@ elif page == "Results":
     st.dataframe(runs, hide_index=True, use_container_width=True)
     st.subheader("Loop status mix")
     st.bar_chart(q("SELECT status, COUNT(*) AS loops FROM FFU.CORE.LOOP_STATUS GROUP BY 1 ORDER BY 1"), x="status", y="loops")
+
+
+# ---------- ROI calculator ----------
+elif page == "ROI calculator":
+    st.header("ROI calculator")
+    st.caption("Every input is editable. Sources are shown next to each default; values marked ASSUMPTION are not "
+               "from a publication and should be replaced with your own numbers. Outputs are estimates, not results.")
+    sim = q("SELECT with_recall_completion_simulated AS sim FROM FFU.EVAL.SIMULATED_IMPACT")
+    sim_rate = float(sim["sim"].iloc[0]) if not sim.empty else 0.74
+    c1, c2 = st.columns(2)
+    cts = c1.number_input("Chest CTs per year", min_value=0, value=20000, step=1000,
+                          help="ASSUMPTION: example volume for a mid-size hospital. Replace with your own.")
+    rate = c1.number_input("Share of chest CTs with an actionable finding (%)", 0.0, 100.0, 31.0, 1.0,
+                           help="Gould MK et al., Am J Respir Crit Care Med 2015: pulmonary nodules were reported on about 31% of chest CTs.") / 100
+    base = c2.number_input("Baseline completion of recommended follow-up (%)", 0.0, 100.0, 37.0, 1.0,
+                           help="Nodule Net, Respiratory Medicine 2022: 442 of 1,202 (37%) completed before a tracking programme.") / 100
+    achieved = c2.number_input("Achieved completion with tracking (%)", 0.0, 100.0, round(sim_rate * 100, 1), 1.0,
+                               help="Default = this project's SIMULATED rate on synthetic data. Published reference: Nodule Net 74% after tracking; "
+                                    "East Alabama Medical Center 39% to 68%.") / 100
+    price = st.number_input("Average reimbursement per completed follow-up exam (USD)", min_value=0, value=250, step=25,
+                            help="ASSUMPTION: replace with your payer mix. Reference point: East Alabama Medical Center reported "
+                                 "about $9,000 a month in added revenue after adopting tracking (HCInnovation Group).")
+    findings = cts * rate
+    recovered = max(findings * (achieved - base), 0)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Actionable findings per year", f"{findings:,.0f}")
+    m2.metric("Follow-ups recovered per year (patients no longer lost)", f"{recovered:,.0f}")
+    m3.metric("Estimated recovered revenue per year", f"${recovered * price:,.0f}")
+    st.caption(f"Recovered = findings x (achieved - baseline) = {findings:,.0f} x ({achieved:.0%} - {base:.0%}). "
+               "Staff time: East Alabama reported tracking work fell from about 5 hours a week to 15 minutes.")

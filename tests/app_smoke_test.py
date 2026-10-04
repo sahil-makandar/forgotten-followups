@@ -62,6 +62,11 @@ try:
     # Alerts and Results.
     at = fresh("Alerts"); check("Alerts loads", at)
     at = fresh("Results"); check("Results loads", at)
+    at = fresh("ROI calculator"); check("ROI calculator loads", at)
+    at.number_input[0].set_value(50000).run(); check("ROI calculator edit input", at)
+    metrics = {m.label: m.value for m in at.metric}
+    results.append(("ROI recovered > 0", any("recovered" in k.lower() and v not in ("0", "$0") for k, v in metrics.items()), str(metrics)))
+    print(("PASS " if results[-1][1] else "FAIL ") + "ROI recovered > 0  " + str(metrics))
 
     # Sidebar buttons: refresh, then move the clock (restored below).
     at = fresh("Worklist")
