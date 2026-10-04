@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project secrets and licensed data
+connections.toml
+config.toml
+*.p8
+data/openi/
+
