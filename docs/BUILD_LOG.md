@@ -60,3 +60,16 @@
 - `DEMO_RESET(TRUE)` brings back a clean state.
 
 **Eval baseline (`EVAL.RUNS`):** 700 index reports, accuracy 0.991, false greens 0 (upper bound 0.026), 1 missed loop, quote verified 100%.
+
+## 2026-10-04 - Thyroid rule (guideline-rule-compiler)
+
+**Rule:** ACR 2015 incidental thyroid white paper (Hoang JK et al., JACR 2015;12:143-150).
+- Thyroid ultrasound if nodule >= 1.5 cm (age 35+), >= 1.0 cm (under 35), or any size with suspicious features.
+- Tier 1 if suspicious, tier 2 otherwise. Due within 3 months.
+- Closure: CPT 76536 (closes), CPT 70491 (does not close).
+
+**File:** `sql/rules/thyroid.sql` — Dynamic Table `FFU.CORE.EXTRA_RULES`.
+
+**Tests:** `tests/thyroid/02_check.sql` — 7/7 PASS (6 clinical cases + closure codes).
+
+**Eval:** before 690/700 (98.57%), 0 false greens, 1 missed loop. After: 690/700 (98.57%), 0 false greens, 1 missed loop. No regression.

@@ -6,34 +6,36 @@ description: "Reset the Forgotten Follow-ups demo to its start state before a de
 # demo-reset
 
 **Input:** optionally "including extensions", which also removes rules added live by guideline-rule-compiler, so the thyroid step can be shown again.
-**Processing:** `FFU.CTRL.DEMO_RESET(<bool>)` runs on the hospital account, then the payer demo claims are removed on the payer account, then a warm-up runs.
-**Output:** a checklist showing the state is clean.
+**Processing:** `CTRL.DEMO_RESET(bool)` on the hospital account, then removal of the payer demo claims, then `CTRL.DEMO_STATE()`.
+**Output:** the `DEMO_STATE` checklist.
 
-This deletes demo rows only:
-- hospital: `set_name = 'DEMO'` reports and their AI rows, all `APP.ALERTS` and `APP.OUTSIDE_REPORT_REQUESTS`, demo cancellations;
+It deletes demo rows only:
+- hospital: `set_name = 'DEMO'` reports and their AI rows, `APP.ALERTS`, `APP.OUTSIDE_REPORT_REQUESTS`, demo cancellations;
 - payer: `event_id LIKE 'EDEMO%'`.
 
-Tell the user that before running, and ask for confirmation unless they already said "reset the demo".
+Run without asking if the user said "reset the demo"; otherwise confirm first.
 
-## Steps
+## Fixed SQL - run ONLY these statements, in this order. Never write other SQL or guess column names.
 
-1. Hospital:
+1. Hospital (`sql_execute`). Use `TRUE` only if the user said "including extensions":
    ```sql
-   CALL FFU.CTRL.DEMO_RESET(<TRUE if "including extensions", else FALSE>);
+   CALL FFU.CTRL.DEMO_RESET(TRUE);
    ```
-2. Payer (plain SQL; that account has no AI):
+2. Payer (shell):
    ```powershell
    snow sql -c payer -q "DELETE FROM PAYER_DB.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS WHERE event_id LIKE 'EDEMO%'"
    ```
-   Then refresh the status so the share change is seen: `ALTER DYNAMIC TABLE FFU.CORE.LOOP_STATUS REFRESH;`
-3. Warm the warehouse and check the start state with one query:
+3. Hospital:
    ```sql
-   SELECT (SELECT MAX(sim_date) FROM FFU.CTRL.SIM_DATE) sim_date,
-          (SELECT COUNT(*) FROM FFU.RAW.REPORTS WHERE set_name = 'DEMO') demo_reports,
-          (SELECT COUNT(*) FROM FFU.APP.ALERTS) alerts,
-          (SELECT COUNT(*) FROM FFU.CORE.LOOP_STATUS WHERE patient_id = 'P09902') decoy_loops,
-          (SELECT COUNT(*) FROM FFU.CORE.LOOPS WHERE finding_type = 'THYROID_NODULE') thyroid_loops,
-          (SELECT COUNT(*) FROM PAYER_SHARE.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS WHERE event_id LIKE 'EDEMO%') demo_claims;
+   ALTER DYNAMIC TABLE FFU.CORE.LOOP_STATUS REFRESH;
    ```
-   Expected values: sim_date 2026-10-04, demo_reports 0, alerts 0, decoy_loops 1, demo_claims 0, and thyroid_loops 0 if extensions were reset.
-4. Print the checklist with PASS/FAIL per line. Remind the user of the demo order in `docs/DEMO_SCRIPT.md`.
+4. Hospital:
+   ```sql
+   CALL FFU.CTRL.DEMO_STATE();
+   ```
+   It returns the columns `CHECK_NAME, ACTUAL, EXPECTED, RESULT`.
+
+5. If extensions were reset and `sql/rules/thyroid.sql` exists, tell the user to rename it to `sql/rules/thyroid.prev.sql`, so the next take writes the rule fresh. Do not delete it yourself.
+
+## Output
+Print the DEMO_STATE table as returned. Then one line: "Demo ready" if every RESULT is PASS (INFO is fine only for thyroid_loops when extensions were kept), else "NOT READY: <failed checks>". Point the user to `docs/DEMO_SCRIPT.md`.

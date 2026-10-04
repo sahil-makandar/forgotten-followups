@@ -102,3 +102,67 @@ BEGIN
 END;
 $$;
 
+-- Fixed-shape read procedures, so skills never guess column names.
+-- Loops for a patient or loop id (or ALL red/amber when ID = 'WORKLIST').
+CREATE OR REPLACE PROCEDURE CORE.SHOW_LOOPS(ID STRING)
+RETURNS TABLE (loop_id STRING, patient_id STRING, finding_type STRING, size STRING, tier NUMBER, pathway STRING,
+               status STRING, status_reason STRING, priority_score FLOAT, due_end DATE, days_overdue NUMBER,
+               clinician_acked BOOLEAN, patient_notified BOOLEAN, quote STRING, quote_verified BOOLEAN, sim_date DATE)
+LANGUAGE SQL AS
+$$
+DECLARE res RESULTSET;
+BEGIN
+  res := (SELECT loop_id, patient_id, finding_type,
+                 COALESCE(avg_mm || ' mm (' || long_mm || ' x ' || short_mm || ')', aorta_cm || ' cm'),
+                 tier, pathway, status, status_reason, priority:score::FLOAT, due_end, days_overdue,
+                 clinician_acked, patient_notified, quote, quote_verified, sim_date
+          FROM CORE.LOOP_STATUS
+          WHERE patient_id = :ID OR loop_id = :ID OR (:ID = 'WORKLIST' AND status IN ('RED','AMBER'))
+          ORDER BY tier, priority:score::FLOAT DESC, days_overdue DESC
+          LIMIT 50);
+  RETURN TABLE(res);
+END;
+$$;
+
+-- Move the demo clock, refresh, fire the overdue alert synchronously, and return the alerts for the given patients
+-- (comma-separated, or 'ALL'). Uses the same insert as APP.OVERDUE_ALERT.
+CREATE OR REPLACE PROCEDURE CTRL.ADVANCE_CLOCK(D DATE, PATIENTS STRING)
+RETURNS TABLE (loop_id STRING, patient_id STRING, tier NUMBER, message STRING, sim_date DATE, fired_at TIMESTAMP_NTZ)
+LANGUAGE SQL AS
+$$
+DECLARE res RESULTSET;
+BEGIN
+  UPDATE CTRL.SIM_DATE SET sim_date = :D;
+  ALTER DYNAMIC TABLE CORE.LOOP_STATUS REFRESH;
+  INSERT INTO APP.ALERTS (loop_id, patient_id, tier, message, sim_date)
+  SELECT loop_id, patient_id, tier, 'Tier 1 ' || finding_type || ' overdue: ' || status_reason, sim_date
+  FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1
+    AND NOT EXISTS (SELECT 1 FROM APP.ALERTS a WHERE a.loop_id = s.loop_id);
+  res := (SELECT loop_id, patient_id, tier, message, sim_date, fired_at FROM APP.ALERTS
+          WHERE :PATIENTS = 'ALL' OR ARRAY_CONTAINS(patient_id::VARIANT, SPLIT(REPLACE(:PATIENTS, ' ', ''), ','))
+          ORDER BY fired_at DESC LIMIT 50);
+  RETURN TABLE(res);
+END;
+$$;
+
+-- Demo state checklist for demo-reset (fixed columns, expected values inline).
+CREATE OR REPLACE PROCEDURE CTRL.DEMO_STATE()
+RETURNS TABLE (check_name STRING, actual STRING, expected STRING, result STRING)
+LANGUAGE SQL AS
+$$
+DECLARE res RESULTSET;
+BEGIN
+  res := (WITH c AS (
+      SELECT 'sim_date' n, (SELECT MAX(sim_date) FROM CTRL.SIM_DATE)::STRING a, '2026-10-04' e UNION ALL
+      SELECT 'demo_reports', (SELECT COUNT(*) FROM RAW.REPORTS WHERE set_name = 'DEMO')::STRING, '0' UNION ALL
+      SELECT 'demo_alerts', (SELECT COUNT(*) FROM APP.ALERTS WHERE patient_id LIKE 'P099%')::STRING, '0' UNION ALL
+      SELECT 'demo_outside_requests', (SELECT COUNT(*) FROM APP.OUTSIDE_REPORT_REQUESTS WHERE patient_id LIKE 'P099%')::STRING, '0' UNION ALL
+      SELECT 'decoy_loops_P09902', (SELECT COUNT(*) FROM CORE.LOOP_STATUS WHERE patient_id = 'P09902')::STRING, '1' UNION ALL
+      SELECT 'demo_claims_in_share', (SELECT COUNT(*) FROM PAYER_SHARE.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS WHERE event_id LIKE 'EDEMO%')::STRING, '0' UNION ALL
+      SELECT 'thyroid_loops', (SELECT COUNT(*) FROM CORE.LOOPS WHERE finding_type = 'THYROID_NODULE')::STRING, '0')
+    -- thyroid_loops > 0 is INFO, not FAIL: expected when extensions were kept on purpose.
+    SELECT n, a, e, IFF(a = e, 'PASS', IFF(n = 'thyroid_loops', 'INFO', 'FAIL')) FROM c);
+  RETURN TABLE(res);
+END;
+$$;
+

@@ -19,6 +19,22 @@ Connection: `hospital`. Never read `FFU.KEY.*`. AI extraction already tags `find
 
 ## Steps
 
+### Fixed SQL and exact columns - do not guess
+The only SQL you write yourself is the rule file in step 3. Everything else is one of these statements:
+
+| Purpose | Statement | Returned columns |
+| --- | --- | --- |
+| Eval | `CALL FFU.EVAL.RUN_EVAL('<label>');` | `LABEL, N, CORRECT, ACCURACY, FALSE_GREEN, FALSE_GREEN_UPPER95, MISSED_LOOPS, QUOTE_VERIFIED_RATE` |
+| Install | shell: `snow sql -c hospital -f sql/rules/<rule>.sql` | - |
+| Refresh | `ALTER DYNAMIC TABLE FFU.CORE.EXTRA_RULES REFRESH;` then `CALL FFU.CORE.PROCESS_NEW_REPORTS();` | as in followup-intake (0 rows is normal) |
+| Test | shell: `snow sql -c hospital -f tests/<rule>/02_check.sql` | `REPORT_ID, WHY, EXPECT_LOOP, GOT_LOOP, EXPECT_TIER, GOT_TIER, RESULT` |
+| Show new loops | `CALL FFU.CORE.SHOW_LOOPS('<patient_id>');` | see loop-auditor |
+
+The rule may read ONLY these columns:
+- `FFU.CORE.FINDINGS f`: `finding_key, report_id, patient_id, report_date, modality, finding_type, nodule_type, location, long_mm, short_mm, avg_mm, solid_mm, aorta_cm, rec_action, stated_min_months, stated_max_months, hedged, negated, stable, suspicious, quote, quote_verified, hx_cancer, hx_immuno, hx_screening`. Sizes are in **mm**; `finding_type` values include `THYROID_NODULE`.
+- `FFU.RAW.PATIENTS p`: `patient_id, age, sex, smoking, known_cancer, immunosuppressed, screening_enrolled, tb_history, clinic_id`.
+- `FFU.CORE.CLOSURE_CODES` columns, for the INSERT: `action, cpt, closes, screening_only, note`.
+
 1. **Baseline.** Run `CALL FFU.EVAL.RUN_EVAL('before-<rule>');` and keep the numbers.
 
 2. **Read the contract.** The new rule must return exactly the columns of `FFU.CORE.EXTRA_RULES_EMPTY`, in the same order:

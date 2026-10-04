@@ -27,7 +27,17 @@ Source: Chaikof EL et al., J Vasc Surg 2018;67:2-77.
 - Surveillance continues: closing one loop opens the next check-up.
 
 ## 4. Thyroid nodule seen on CT (ACR 2015 white paper)
-Not built in version 1. It is added live through the `guideline-rule-compiler` skill, and its tests are prepared in advance in `tests/`.
+Source: Hoang JK et al., J Am Coll Radiol 2015;12:143-150. https://www.acr.org/Clinical-Resources/Clinical-Tools-and-Reference/Incidental-Findings
+
+- **1.5 cm or more (age 35+):** thyroid ultrasound within 3 months. **Tier 2.**
+- **1.0 cm or more (under 35):** thyroid ultrasound within 3 months. **Tier 2.**
+- **Any size with suspicious features** (abnormal lymph nodes, local invasion, PET avidity): thyroid ultrasound within 3 months. **Tier 1.**
+- **Under the threshold and not suspicious:** no follow-up.
+- **What closes the loop:** thyroid ultrasound (CPT 76536).
+- **What does not close the loop:** neck CT (CPT 70491).
+- Closure codes: `THYROID_ULTRASOUND` / `76536` (closes), `THYROID_ULTRASOUND` / `70491` (does not close).
+
+Added by guideline-rule-compiler on 2026-10-04, pending clinician sign-off.
 
 ## 5. Pathway routing (lung nodules; Fleischner exclusions)
 Patients with known cancer go to **ONCOLOGY_SURVEILLANCE**. Patients who are immunosuppressed or under 35 go to **CLINICIAN_REVIEW**. Patients enrolled in screening go to **LUNG_SCREENING** (Lung-RADS). These patients are listed with the reason and are never silently dropped.

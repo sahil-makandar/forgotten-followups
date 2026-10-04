@@ -5,38 +5,33 @@ description: "Ingest new radiology reports and turn them into tracked follow-up 
 
 # followup-intake
 
-**Input:** one or more report text files, or report rows already in `FFU.RAW.REPORTS`.
-**Processing:** `FFU.CORE.INGEST_REPORT` lands the file, then `FFU.CORE.PROCESS_NEW_REPORTS()` does the rest. This is the same procedure the Task `FFU.AI.ON_NEW_REPORT` and the app's refresh button call, so there is one shared path.
-**Output:** a table of the new loops with tier, priority, due date, status, "patient told" and the verified quote.
+**Input:** report text files in a folder (for example `demo/inbox`).
+**Processing:** `CORE.INGEST_REPORT` lands each file, then `CORE.PROCESS_NEW_REPORTS()` runs. That is the same procedure the Task and the app call, and it does extraction with quotes, rules, routing, priority, Dynamic Table refresh and AI_FILTER.
+**Output:** the new loops.
 
-Connection: `hospital`. Warehouse: `COMPUTE_WH`. Never read `FFU.KEY.*`; that schema is the hidden answer key.
+## Fixed SQL - run ONLY these statements. Never write other SQL, never query tables directly, never guess column names. Never read `FFU.KEY.*`.
+
+| Purpose | Statement | Returned columns |
+| --- | --- | --- |
+| Land one file | `CALL FFU.CORE.INGEST_REPORT('<REPORT_ID>', '<PATIENT_ID>', '<YYYY-MM-DD>', '<MODALITY>', '<CPT>', '<FACILITY>', $$<file text>$$);` | `INGEST_REPORT` (a message) |
+| Process | `CALL FFU.CORE.PROCESS_NEW_REPORTS();` | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, PRIORITY_SCORE, DUE_END, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, STATUS_REASON, QA_FLAG` |
+| If PROCESS returned 0 rows | `CALL FFU.CORE.SHOW_LOOPS('<PATIENT_ID>');` (once per patient landed) | `LOOP_ID, PATIENT_ID, FINDING_TYPE, SIZE, TIER, PATHWAY, STATUS, STATUS_REASON, PRIORITY_SCORE, DUE_END, DAYS_OVERDUE, CLINICIAN_ACKED, PATIENT_NOTIFIED, QUOTE, QUOTE_VERIFIED, SIM_DATE` |
+
+`PROCESS_NEW_REPORTS` may return 0 rows if the background Task already processed the report. That is normal; use `SHOW_LOOPS`.
 
 ## Steps
-
-1. **Find the input.** If the user gives a folder or file, list `*.txt` files. The file name pattern is
-   `<REPORT_ID>_<PATIENT_ID>_<YYYY-MM-DD>_<MODALITY>_<CPT>.txt`, for example `demo/inbox/RDEMO001_P09901_2026-10-04_CT_CHEST_71275.txt`.
-   If a name doesn't match the pattern, ask the user for the missing fields. Do not guess them.
-
-2. **Land each report** with a bound call. Pass the file text as-is; never edit the clinical text:
-   ```sql
-   CALL FFU.CORE.INGEST_REPORT('<REPORT_ID>', '<PATIENT_ID>', '<DATE>', '<MODALITY>', '<CPT>', 'HOSPITAL', $$<file text>$$);
-   ```
-   If the text contains `$$`, stop and tell the user.
-
-3. **Process:**
-   ```sql
-   CALL FFU.CORE.PROCESS_NEW_REPORTS();
-   ```
-   It extracts only reports not seen before (AI output is cached), refreshes `CORE.FINDINGS`, `CORE.LOOPS` and `CORE.LOOP_STATUS`, runs AI_FILTER on candidate follow-ups, and files outside-report requests for AMBER loops.
-
-4. **Print the result** as a short table: loop_id, patient, finding and size, tier, priority score, due date, status, patient notified, and the quote with its verified flag. Then add one line per loop:
-   - `quote_verified = FALSE`: say "QUOTE NOT FOUND IN SOURCE - do not rely on this loop until reviewed".
-   - `pathway <> 'STANDARD'`: say it was rerouted, and why (`status_reason`).
-   - `qa_flag` set: show it as a QA note for the radiologist. Never change the radiologist's recommendation.
-   - `patient_notified = FALSE`: flag "patient not told".
-
-5. If no new loops come back, say so, and show whether any reports were extracted but produced no actionable finding (for example negated, or "no follow-up needed").
+1. List the `*.txt` files in the folder. The file name is `<REPORT_ID>_<PATIENT_ID>_<YYYY-MM-DD>_<MODALITY>_<CPT>.txt`.
+   - `MODALITY` may contain an underscore (for example `CT_CHEST`): the last part is the CPT, and everything between the date and the CPT is the modality.
+   - FACILITY is `HOSPITAL` unless the folder name contains `outside`; then use `Outside hospital`.
+   - If a name doesn't fit, ask the user. Don't guess.
+2. Read each file and call `INGEST_REPORT` with the text exactly as-is. If the text contains `$$`, stop and tell the user.
+3. Call `PROCESS_NEW_REPORTS` once. If it returns 0 rows, call `SHOW_LOOPS` for each patient.
+4. Print a table: loop_id, patient, finding and size, tier, priority, due date, status, patient told, and quote (verified yes/no). Then one line per loop:
+   - `QUOTE_VERIFIED = FALSE`: "QUOTE NOT FOUND IN SOURCE - review before relying on this loop".
+   - `PATHWAY <> STANDARD`: rerouted, with `STATUS_REASON`.
+   - `QA_FLAG` set: a QA note for the radiologist (never change the recommendation).
+   - `PATIENT_NOTIFIED = FALSE`: "patient not told".
 
 ## Rules
-- AI only extracts and quotes. Status and priority come from the SQL rules in `sql/07_rules.sql` (signed rule sheet `docs/RULE_SHEET.md`).
-- This tool never diagnoses and never sends anything to a patient.
+- AI only extracts and quotes. Status and priority come from the SQL rules (`sql/07_rules.sql`, `docs/RULE_SHEET.md`).
+- Never diagnose; never send anything to a patient.
