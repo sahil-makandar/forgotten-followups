@@ -27,9 +27,9 @@ The demo shows one end-to-end workflow, Input -> Processing -> Output, run throu
 - Keep a recorded backup of the full run.
 
 ## Recording checklist
-- [ ] `\-reset reset the demo including extensions` shows every line PASS.
+- [ ] `$demo-reset reset the demo including extensions` shows every line PASS.
 - [ ] If `sql/rules/thyroid.sql` exists from a rehearsal, rename it, so the compiler writes the rule live.
 - [ ] Warehouse warm (`SELECT 1`); app open on the Worklist; terminal font large; notifications off.
 - [ ] One full rehearsal take; keep it as the backup recording.
 - [ ] Record at 1080p, 3-5 minutes. Show the CoCo CLI skills first, then the app.
-- [ ] After recording: `\-reset reset the demo including extensions` again, then re-run the official eval if you changed anything.
+- [ ] After recording: `$demo-reset reset the demo including extensions` again, then re-run the official eval if you changed anything.
