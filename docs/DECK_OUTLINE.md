@@ -43,12 +43,12 @@ Each slide is headed by the rubric line it serves: Real-World Relevance 30, Tech
 - The compiler writes the SQL rule, stops for approval, then runs 7 tests written before the rule existed (all PASS) and re-runs the eval with no regression.
 
 **9. Results** *(Technical Execution)*
-- Table: Set C 99.1% with 0 false greens vs keyword 61.4% (94 false greens) vs AI-only 60.4% (13); Set B 36/36 vs 18/36 vs 21/36; Set A pending labels.
+- Table: Set C 99.1% with 0 false greens vs keyword 61.4% (94 false greens) vs AI-only 60.4% (13); Set B 36/36 vs 18/36 vs 21/36; Set A (real) blind 17/24 loops at 91.7%, 21/24 at 95.0% after one rule fix made after seeing Set A.
 - Cost per 1,000 reports: at most about 1.3 AI credits. Latency: about 21 ms per report in a batch.
-- SIMULATED: completion 37% baseline, then 50.9% with the payer share, then 78.8% with recall.
+- SIMULATED: completion 35.9% (hospital only), then 50.9% with the payer share, then 78.8% with recall.
 - 3 honest failure cases (one line each).
 
 **10. Limits, roadmap, ask** *(Solution Completeness)*
-- Limits: synthetic data; Set B labels written by the builder; Set A labels pending; owner's-rights app.
-- Roadmap: Marketplace synthetic claims (checked, free), Native App, Snowflake Intelligence, ABDM for Indian hospitals, Hindi letter.
+- Limits: synthetic data; Set B labels written by the build agent, no outside tester; Set A rule fix after seeing results; trial account; owner's-rights app.
+- Roadmap: deeper use of the Marketplace clinical and claims listing (mounted; context chart today), Native App, Snowflake Intelligence, ABDM for Indian hospitals, Hindi letter.
 - Close: "0 false greens - nobody is told they're done when they aren't."
