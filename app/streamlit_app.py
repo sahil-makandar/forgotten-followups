@@ -11,7 +11,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Forgotten Follow-ups", layout="wide")
 
-conn = st.connection("snowflake", connection_name=os.getenv("SNOWFLAKE_DEFAULT_CONNECTION_NAME") or "default")
+conn = st.connection("snowflake")  # SiS supplies the connection; passing connection_name here crashes the app
 
 # Restricted caller's rights connection (container runtime only). Must be created at the top of the script:
 # the caller token is valid for two minutes from session start. It runs as the VIEWER's default role and can only
