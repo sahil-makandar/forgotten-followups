@@ -91,3 +91,27 @@
 - "Closed only by outside claims": 49, which matches the AMBER count.
 - Explain tool: 2 bugs fixed. A UDF parameter name shadowed a column, and a UDF with a subquery could not be used inside LISTAGG.
 - Secure view fixes: `days_overdue` now counts RED loops only, and `closed_by_outside_claim_only` now means status AMBER.
+
+## 2026-10-04 - Block 3 (copilot and app)
+
+**Built:**
+- Access control (sql/11), with roles FFU_COORDINATOR (clinics C1 and C2, full detail) and FFU_ANALYST (all clinics, masked). The secure views SEC.LOOPS_V and SEC.REPORTS_V check the primary role with CURRENT_ROLE(); IS_ROLE_IN_SESSION widened access through secondary roles, so it was replaced. Tested: the coordinator sees 312 loops in C1/C2; the analyst sees 611 loops with hashed IDs, *** quotes, age bands and 0 reports.
+- Copilot layer (sql/12):
+  - APP.RULE_TEXT (R1-R7, paraphrased);
+  - Cortex Search APP.REPORT_SEARCH over reports and rules;
+  - view APP.LOOP_EXPLANATION, with UDF APP.EXPLAIN_PRIORITY and tool procedure APP.EXPLAIN_PRIORITY_TOOL;
+  - APP.DRAFT_LETTER, APP.APPROVE_DRAFT and APP.APPROVALS;
+  - APP.VERIFY_QUOTE;
+  - semantic view APP.LOOPS_SV over SEC.LOOPS_V.
+- Cortex Agent APP.FFU_AGENT (gent/FFU_AGENT.agent.yaml, gent/create_agent.sql) with 4 tools: analyst, search, explain_priority and draft_letter. cortex agent-studio agent-write could not take multi-line YAML from PowerShell, so the agent was created with CREATE AGENT FROM SPECIFICATION from the same spec file.
+- APP.ASK_AGENT wraps DATA_AGENT_RUN for the app (sql/13).
+- Streamlit FFU.APP.FFU_APP (container runtime, SYSTEM_COMPUTE_POOL_CPU) with these pages: Worklist, Patient loop timeline, Copilot chat, Alerts and Results.
+
+**Tests:**
+- Agent "who is first": rank 1 of 211 (L-R00334-0), with the score breakdown, verified quote, rules R3/R7 and communication status.
+- "Closed only by outside claims": 49 (matches the AMBER count).
+- Letter draft is logged as PENDING_CLINICIAN_APPROVAL.
+
+**Bundled skills used:** agent-studio (agent spec templates), developing-with-streamlit-in-snowflake (deploy manifest, container runtime).
+
+**App URL:** https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP
