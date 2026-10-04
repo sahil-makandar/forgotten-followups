@@ -26,8 +26,20 @@ STATUS_ICON = {"RED": ":red[RED]", "AMBER": ":orange[AMBER]", "GREEN": ":green[G
 
 
 def q(sql: str, params=None, ttl=0) -> pd.DataFrame:
-    """Run a parameterised query; column names are lower-cased for easy access."""
-    df = conn.query(sql, params=params, ttl=ttl)
+    """Run a parameterised query; column names are lower-cased for easy access.
+
+    CALL results come back in JSON result format, which conn.query() (Arrow fetch) cannot read
+    ("NotSupportedError: Unknown error"), so procedure calls go through a plain cursor.
+    """
+    if sql.lstrip().upper().startswith("CALL"):
+        cur = conn.cursor()
+        try:
+            cur.execute(sql, params)
+            df = pd.DataFrame(cur.fetchall(), columns=[d[0] for d in cur.description])
+        finally:
+            cur.close()
+    else:
+        df = conn.query(sql, params=params, ttl=ttl)
     df.columns = [c.lower() for c in df.columns]
     return df
 
@@ -50,7 +62,7 @@ st.sidebar.markdown(f"**Demo date:** {sim_date()}")
 new_date = st.sidebar.date_input("Move demo clock to", value=pd.to_datetime(sim_date()))
 if st.sidebar.button("Move clock and run overdue alert", use_container_width=True):
     with st.spinner("Moving clock, refreshing loops, firing alert..."):
-        run("CALL FFU.CTRL.ADVANCE_CLOCK(%s, 'ALL')", [str(new_date)])
+        run("CALL FFU.CTRL.ADVANCE_CLOCK(?, 'ALL')", [str(new_date)])
     st.rerun()
 if st.sidebar.button("Refresh (process new reports)", use_container_width=True):
     with st.spinner("Extracting new reports and refreshing loops..."):
@@ -74,7 +86,12 @@ if page == "Worklist":
     f1, f2 = st.columns(2)
     types = f1.multiselect("Finding type", sorted(wl["finding_type"].unique()))
     tiers = f2.multiselect("Tier", sorted(wl["tier"].unique()))
-    view = wl[(wl["finding_type"].isin(types) if types else True) & (wl["tier"].isin(tiers) if tiers else True)]
+    mask = pd.Series(True, index=wl.index)  # start from "keep all" so no filter selected keeps every row
+    if types:
+        mask &= wl["finding_type"].isin(types)
+    if tiers:
+        mask &= wl["tier"].isin(tiers)
+    view = wl[mask]
     st.dataframe(view, hide_index=True, use_container_width=True,
                  column_config={"priority": st.column_config.NumberColumn(format="%.1f")})
 
@@ -102,7 +119,7 @@ if page == "Worklist":
 elif page == "Patient 360":
     st.header("Patient 360")
     pid = st.text_input("Patient ID", value="P09901").strip()
-    loops = q("SELECT * FROM FFU.CORE.LOOP_CARD WHERE patient_id = %s ORDER BY priority_score DESC", [pid])
+    loops = q("SELECT * FROM FFU.CORE.LOOP_CARD WHERE patient_id = ? ORDER BY priority_score DESC", [pid])
     if loops.empty:
         st.info("No follow-up loops for this patient.")
     for _, l in loops.iterrows():
@@ -114,14 +131,14 @@ elif page == "Patient 360":
             if l["qa_flag"]:
                 st.warning(f"QA note for the radiologist (we never override): {l['qa_flag']}")
             # Original report with the evidence quote highlighted.
-            rpt = q("SELECT report_id, report_date, facility, text FROM FFU.RAW.REPORTS WHERE report_id = %s", [l["report_id"]])
+            rpt = q("SELECT report_id, report_date, facility, text FROM FFU.RAW.REPORTS WHERE report_id = ?", [l["report_id"]])
             if not rpt.empty:
                 text, quote = rpt["text"].iloc[0], l["quote"] or ""
                 shown = text.replace(quote, f"**:orange-background[{quote}]**") if quote and quote in text else text
                 with st.expander(f"Report {rpt['report_id'].iloc[0]} ({rpt['report_date'].iloc[0]}) - quote verified: {l['quote_verified']}"):
                     st.markdown(shown.replace("\n", "  \n"))
             if st.button("Audit this loop (recompute from raw rows)", key=f"audit-{l['loop_id']}"):
-                a = q("CALL FFU.CORE.AUDIT_LOOP(%s)", [l["loop_id"]])
+                a = q("CALL FFU.CORE.AUDIT_LOOP(?)", [l["loop_id"]])
                 for _, r in a.iterrows():
                     (st.success if r["match"] else st.error)(
                         f"{'MATCH' if r['match'] else 'MISMATCH'}: app says {r['app_status']}, raw rows say {r['audit_status']}")
@@ -130,14 +147,14 @@ elif page == "Patient 360":
     st.subheader("Timeline")
     tl = q("""
         SELECT report_date AS event_date, 'Report ' || report_id || ' (' || modality || ', ' || facility || ')' AS event, 'hospital record' AS source
-          FROM FFU.RAW.REPORTS WHERE patient_id = %s
-        UNION ALL SELECT ack_date, 'Clinician acknowledged ' || report_id, 'hospital record' FROM FFU.RAW.ACKS WHERE patient_id = %s
-        UNION ALL SELECT notified_date, 'Patient notified by ' || channel, 'hospital record' FROM FFU.RAW.NOTIFICATIONS WHERE patient_id = %s
-        UNION ALL SELECT order_date, 'Order ' || cpt || ' ' || status, 'hospital record' FROM FFU.RAW.ORDERS WHERE patient_id = %s
+          FROM FFU.RAW.REPORTS WHERE patient_id = ?
+        UNION ALL SELECT ack_date, 'Clinician acknowledged ' || report_id, 'hospital record' FROM FFU.RAW.ACKS WHERE patient_id = ?
+        UNION ALL SELECT notified_date, 'Patient notified by ' || channel, 'hospital record' FROM FFU.RAW.NOTIFICATIONS WHERE patient_id = ?
+        UNION ALL SELECT order_date, 'Order ' || cpt || ' ' || status, 'hospital record' FROM FFU.RAW.ORDERS WHERE patient_id = ?
         UNION ALL SELECT service_date, 'Claim ' || event_id || ': CPT ' || cpt || ' ' || cpt_desc || ' at ' || facility, 'payer share'
-          FROM PAYER_SHARE.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS WHERE patient_id = %s
-        UNION ALL SELECT requested_at::DATE, 'Outside report requested (' || claim || ')', 'app' FROM FFU.APP.OUTSIDE_REPORT_REQUESTS WHERE patient_id = %s
-        UNION ALL SELECT d.next_due, 'Next surveillance check due', 'rule' FROM FFU.CORE.NEXT_CHECKS d WHERE patient_id = %s
+          FROM PAYER_SHARE.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS WHERE patient_id = ?
+        UNION ALL SELECT requested_at::DATE, 'Outside report requested (' || claim || ')', 'app' FROM FFU.APP.OUTSIDE_REPORT_REQUESTS WHERE patient_id = ?
+        UNION ALL SELECT d.next_due, 'Next surveillance check due', 'rule' FROM FFU.CORE.NEXT_CHECKS d WHERE patient_id = ?
         ORDER BY 1""", [pid] * 7)
     st.dataframe(tl, hide_index=True, use_container_width=True)
 
@@ -165,7 +182,7 @@ elif page == "Copilot chat":
         with st.chat_message("user"):
             st.markdown(prompt)
         with st.chat_message("assistant"), st.spinner("Thinking with the agent..."):
-            res = q("CALL FFU.APP.ASK_AGENT(%s)", [prompt])
+            res = q("CALL FFU.APP.ASK_AGENT(?)", [prompt])
             out = json.loads(res.iloc[0, 0]) if isinstance(res.iloc[0, 0], str) else res.iloc[0, 0]
             answer = out.get("answer") or "No answer returned."
             tools = ", ".join(out.get("tools") or [])
@@ -181,7 +198,7 @@ elif page == "Copilot chat":
             if d["status"] == "PENDING_CLINICIAN_APPROVAL":
                 who = st.text_input("Clinician name", key=f"who-{d['draft_id']}")
                 if st.button("Approve (logged)", key=f"ok-{d['draft_id']}", disabled=not who):
-                    run("CALL FFU.APP.APPROVE_DRAFT(%s, %s)", [d["draft_id"], who])
+                    run("CALL FFU.APP.APPROVE_DRAFT(?, ?)", [d["draft_id"], who])
                     st.rerun()
 
 
