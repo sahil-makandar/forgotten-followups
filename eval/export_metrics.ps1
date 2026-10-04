@@ -13,6 +13,9 @@ $traps = Q "SELECT trap, BOOLAND_AGG(status_ok) AS passed FROM FFU.EVAL.SETB_RES
 $cost = Q "SELECT ROUND(SUM(IFF(service_type = 'AI_FUNCTIONS', credits_used, 0)), 3) AS ai_credits, ROUND(SUM(IFF(service_type = 'WAREHOUSE_METERING', credits_used, 0)), 3) AS wh_credits, ROUND(SUM(IFF(service_type = 'CORTEX_AGENTS', credits_used, 0)), 3) AS agent_credits, ROUND(SUM(IFF(service_type = 'SNOWPARK_CONTAINER_SERVICES', credits_used, 0)), 3) AS app_credits, (SELECT COUNT(*) FROM FFU.AI.EXTRACTIONS) AS extractions, (SELECT COUNT(*) FROM FFU.RAW.REPORTS WHERE gen_model LIKE 'claude%') AS generated FROM SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY WHERE start_time >= '2026-10-03'"
 $c = $cost[0]
 $sim = (Q "SELECT * FROM FFU.EVAL.SIMULATED_IMPACT")[0]
+$setaBlind = Q "SELECT * FROM FFU.EVAL.SETA_SUMMARY_BLIND ORDER BY method"
+$setaNow = Q "SELECT * FROM FFU.EVAL.SETA_SUMMARY ORDER BY method"
+$setaF = (Q "SELECT COUNT_IF(exp_loop AND sys_loop) AS tp, COUNT_IF(exp_loop AND sys_loop AND sys_type = exp_type) AS type_ok, COUNT_IF(exp_loop AND sys_loop AND sys_hedged = exp_hedged) AS hedged_ok, COUNT_IF(extraction_error) AS extraction_errors FROM FFU.EVAL.SETA_RESULTS")[0]
 $procReports = [int]$c.EXTRACTIONS + [int]$c.GENERATED
 
 $out = [ordered]@{
@@ -28,7 +31,13 @@ $out = [ordered]@{
     size = "$($setb[0].SIZE_OK)/$($setb[0].SIZE_N)"; tier = "$($setb[0].TIER_OK)/$($setb[0].TIER_N)"; pathway = "$($setb[0].PATHWAY_OK)/$($setb[0].PATHWAY_N)"
     quotes_verified = "$($setb[0].QUOTES_OK)/$($setb[0].QUOTES_N)"
     traps = @($traps | % { [ordered]@{ trap = $_.TRAP; passed = $_.PASSED } }) }
-  set_a = [ordered]@{ dataset = '120 real Indiana University chest X-ray reports (Open-i, CC BY-NC-ND 4.0); text never committed'; status = 'extracted; awaiting hand labels in eval/setA/setA_labels.csv' }
+  set_a = [ordered]@{
+    dataset = '120 real Indiana University chest X-ray reports (Open-i, CC BY-NC-ND 4.0), seed 2026 from 340 candidates; text never committed; labels hand-made by the builder (eval/setA/setA_labels.csv), 24 expect a loop'
+    task = 'Loop detection (does the report open a follow-up loop); no follow-up events exist for real reports'
+    blind = @($setaBlind | % { [ordered]@{ method = $_.METHOD; n = $_.N; tp = $_.TP; fp = $_.FP; fn = $_.FN; accuracy = $_.ACCURACY; ci95 = @($_.ACC_CI_LOW, $_.ACC_CI_HIGH); precision = $_.PRECISION; recall = $_.RECALL } })
+    after_cxr_rule_fix = @($setaNow | % { [ordered]@{ method = $_.METHOD; n = $_.N; tp = $_.TP; fp = $_.FP; fn = $_.FN; accuracy = $_.ACCURACY; ci95 = @($_.ACC_CI_LOW, $_.ACC_CI_HIGH); precision = $_.PRECISION; recall = $_.RECALL } })
+    system_fields_on_true_positives = [ordered]@{ tp = $setaF.TP; finding_type_ok = $setaF.TYPE_OK; hedged_ok = $setaF.HEDGED_OK; extraction_errors = $setaF.EXTRACTION_ERRORS }
+    note = 'Blind run missed 7 of 24: real X-rays describe mediastinal contours and masses that extraction typed as OTHER with a CT recommendation. Rule fix: on an X-ray, any non-negated finding with a CT/PET/biopsy recommendation opens a loop. The fix was informed by Set A, so after_cxr_rule_fix is no longer blind; Sets B and C were re-run unchanged.' }
   baselines = @($base | % { [ordered]@{ method = $_.METHOD; set = $_.SET_NAME; n = $_.N; correct = $_.CORRECT; accuracy = $_.ACCURACY; ci95 = @($_.ACC_CI_LOW, $_.ACC_CI_HIGH); false_greens = $_.FALSE_GREENS; false_green_rate = $_.FALSE_GREEN_RATE; false_green_upper95 = $_.FALSE_GREEN_UPPER95_RULE_OF_3 } })
   baseline_notes = 'KEYWORD: recommend/follow-up opens a loop, any later event closes it. AI_ONLY: claude-haiku-4-5 picks the status from report text plus events (Set B all, Set C 96-report sample). False-green rate = wrong greens / loops that should not be green.'
   cost = [ordered]@{

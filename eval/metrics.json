@@ -1,9 +1,9 @@
 ﻿{
-    "protocol":  "Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, labels pending). Impact numbers elsewhere are simulated.",
+    "protocol":  "Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, hand-labelled). Impact numbers elsewhere are simulated.",
     "set_c":  {
                   "dataset":  "700 synthetic index reports (2,000 patients); hidden answer key written before report text",
-                  "run_at":  "2026-10-04 03:02:34.241",
-                  "label":  "official-v2-block4",
+                  "run_at":  "2026-10-04 07:56:53.633",
+                  "label":  "official-v3-cxr-rule",
                   "state":  "clean DEMO_RESET(TRUE) state",
                   "loop_status_accuracy":  {
                                                "n":  700,
@@ -171,8 +171,103 @@
                             ]
               },
     "set_a":  {
-                  "dataset":  "120 real Indiana University chest X-ray reports (Open-i, CC BY-NC-ND 4.0); text never committed",
-                  "status":  "extracted; awaiting hand labels in eval/setA/setA_labels.csv"
+                  "dataset":  "120 real Indiana University chest X-ray reports (Open-i, CC BY-NC-ND 4.0), seed 2026 from 340 candidates; text never committed; labels hand-made by the builder (eval/setA/setA_labels.csv), 24 expect a loop",
+                  "task":  "Loop detection (does the report open a follow-up loop); no follow-up events exist for real reports",
+                  "blind":  [
+                                {
+                                    "method":  "AI_ONLY",
+                                    "n":  120,
+                                    "tp":  24,
+                                    "fp":  9,
+                                    "fn":  0,
+                                    "accuracy":  "0.925",
+                                    "ci95":  [
+                                                 0.864,
+                                                 0.96
+                                             ],
+                                    "precision":  "0.727",
+                                    "recall":  "1.000"
+                                },
+                                {
+                                    "method":  "KEYWORD",
+                                    "n":  120,
+                                    "tp":  13,
+                                    "fp":  0,
+                                    "fn":  11,
+                                    "accuracy":  "0.908",
+                                    "ci95":  [
+                                                 0.843,
+                                                 0.948
+                                             ],
+                                    "precision":  "1.000",
+                                    "recall":  "0.542"
+                                },
+                                {
+                                    "method":  "SYSTEM",
+                                    "n":  120,
+                                    "tp":  17,
+                                    "fp":  3,
+                                    "fn":  7,
+                                    "accuracy":  "0.917",
+                                    "ci95":  [
+                                                 0.853,
+                                                 0.954
+                                             ],
+                                    "precision":  "0.850",
+                                    "recall":  "0.708"
+                                }
+                            ],
+                  "after_cxr_rule_fix":  [
+                                             {
+                                                 "method":  "AI_ONLY",
+                                                 "n":  120,
+                                                 "tp":  24,
+                                                 "fp":  9,
+                                                 "fn":  0,
+                                                 "accuracy":  "0.925",
+                                                 "ci95":  [
+                                                              0.864,
+                                                              0.96
+                                                          ],
+                                                 "precision":  "0.727",
+                                                 "recall":  "1.000"
+                                             },
+                                             {
+                                                 "method":  "KEYWORD",
+                                                 "n":  120,
+                                                 "tp":  13,
+                                                 "fp":  0,
+                                                 "fn":  11,
+                                                 "accuracy":  "0.908",
+                                                 "ci95":  [
+                                                              0.843,
+                                                              0.948
+                                                          ],
+                                                 "precision":  "1.000",
+                                                 "recall":  "0.542"
+                                             },
+                                             {
+                                                 "method":  "SYSTEM",
+                                                 "n":  120,
+                                                 "tp":  21,
+                                                 "fp":  3,
+                                                 "fn":  3,
+                                                 "accuracy":  "0.950",
+                                                 "ci95":  [
+                                                              0.895,
+                                                              0.977
+                                                          ],
+                                                 "precision":  "0.875",
+                                                 "recall":  "0.875"
+                                             }
+                                         ],
+                  "system_fields_on_true_positives":  {
+                                                          "tp":  21,
+                                                          "finding_type_ok":  19,
+                                                          "hedged_ok":  18,
+                                                          "extraction_errors":  1
+                                                      },
+                  "note":  "Blind run missed 7 of 24: real X-rays describe mediastinal contours and masses that extraction typed as OTHER with a CT recommendation. Rule fix: on an X-ray, any non-negated finding with a CT/PET/biopsy recommendation opens a loop. The fix was informed by Set A, so after_cxr_rule_fix is no longer blind; Sets B and C were re-run unchanged."
               },
     "baselines":  [
                       {
@@ -263,12 +358,12 @@
     "baseline_notes":  "KEYWORD: recommend/follow-up opens a loop, any later event closes it. AI_ONLY: claude-haiku-4-5 picks the status from report text plus events (Set B all, Set C 96-report sample). False-green rate = wrong greens / loops that should not be green.",
     "cost":  {
                  "window":  "whole build day so far (generation + extraction + AI_FILTER + baselines + agent tests), METERING_HISTORY",
-                 "ai_function_credits":  "2.422",
-                 "warehouse_credits":  "2.368",
-                 "agent_credits":  "0.636",
-                 "app_container_credits":  "0.380",
+                 "ai_function_credits":  "2.436",
+                 "warehouse_credits":  "2.790",
+                 "agent_credits":  "1.446",
+                 "app_container_credits":  "0.813",
                  "ai_reports_processed":  1890,
-                 "ai_credits_per_1000_reports_upper_bound":  1.28,
+                 "ai_credits_per_1000_reports_upper_bound":  1.29,
                  "note":  "Upper bound: includes report generation, baselines and tests, not only production extraction."
              },
     "latency":  {
@@ -310,3 +405,4 @@
                           }
                       ]
 }
+

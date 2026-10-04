@@ -14,7 +14,8 @@ SELECT loop_id, patient_id, finding_type,
   priority:tier_points::STRING || ' tier + ' || priority:time_points::STRING || ' time ('
     || ROUND(priority:elapsed_share::FLOAT * 100) || '% of due window) + ' || priority:context_points::STRING || ' context'
     || IFF(ARRAY_SIZE(priority:notes) > 0, ' [' || ARRAY_TO_STRING(priority:notes::ARRAY, '; ') || ']', '') AS priority_breakdown,
-  due_end, days_overdue, clinician_acked, patient_notified, quote, quote_verified, qa_flag, sim_date, report_id
+  due_end, IFF(status = 'RED', days_overdue, NULL) AS days_overdue,  -- blank unless overdue (AMBER was done elsewhere)
+  clinician_acked, patient_notified, quote, quote_verified, qa_flag, sim_date, report_id
 FROM CORE.LOOP_STATUS;
 
 -- Intake: extract new reports, apply rules, refresh, and return the loops created by this run.

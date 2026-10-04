@@ -34,17 +34,18 @@ CREATE OR REPLACE FUNCTION CORE.PRIORITY(tier NUMBER, elapsed FLOAT, age NUMBER,
 RETURNS OBJECT LANGUAGE PYTHON IMMUTABLE RUNTIME_VERSION = '3.11' HANDLER = 'priority'
 AS $$
 def priority(tier, elapsed, age, smoking, sex, nodule_type, tb_history):
-    # Tier bands of 1000 so time (max 100) + context (max 10) can never lift a loop into a higher tier.
+    # Tier step 1000; time (max 900) + context (max 50) = 950 < 1000, so tier always wins.
+    # Elapsed share is capped at 6x the due window so long-overdue loops still spread out.
     tier_pts = {1: 3000, 2: 2000, 3: 1000}.get(int(tier) if tier is not None else 3, 1000)
-    e = 0.0 if elapsed is None else max(0.0, min(float(elapsed), 2.0))
-    time_pts = round(e * 50, 1)
+    e = 0.0 if elapsed is None else max(0.0, min(float(elapsed), 6.0))
+    time_pts = round(e * 150, 1)
     ctx, notes = 0, []
     if age is not None and age >= 65:
-        ctx += 5; notes.append("age 65+ (+5)")
+        ctx += 25; notes.append("age 65+ (+25)")
     if smoking == "CURRENT":
-        ctx += 5; notes.append("current smoker (+5)")
+        ctx += 25; notes.append("current smoker (+25)")
     elif smoking == "FORMER":
-        ctx += 3; notes.append("former smoker (+3)")
+        ctx += 15; notes.append("former smoker (+15)")
     if tb_history:
         notes.append("TB history shown as context only (no change)")
     if sex == "F" and smoking == "NEVER" and nodule_type in ("PART_SOLID", "GROUND_GLASS"):
@@ -58,7 +59,11 @@ $$;
 CREATE OR REPLACE DYNAMIC TABLE CORE.FINDINGS TARGET_LAG = DOWNSTREAM WAREHOUSE = COMPUTE_WH REFRESH_MODE = FULL AS
 SELECT
   e.report_id || '-' || f.index AS finding_key, e.report_id, r.patient_id, r.report_date, r.modality,
-  CASE WHEN r.modality = 'XR' AND f.value:finding_type::STRING IN ('LUNG_NODULE','CXR_OPACITY') THEN 'CXR_RECOMMEND_CT'
+  -- On a chest X-ray, any non-negated finding with a CT/PET/biopsy recommendation is a "CXR recommends CT" loop
+  -- (real reports describe mediastinal contours, stripes or masses that the model types as OTHER).
+  CASE WHEN r.modality = 'XR' AND (f.value:finding_type::STRING IN ('LUNG_NODULE','CXR_OPACITY')
+                                   OR (f.value:finding_type::STRING = 'OTHER' AND f.value:recommended_action::STRING IN ('CT_CHEST','PET_CT','BIOPSY')))
+       THEN 'CXR_RECOMMEND_CT'
        ELSE f.value:finding_type::STRING END AS finding_type,
   NULLIF(f.value:nodule_type::STRING, 'NA') AS nodule_type,
   f.value:location::STRING AS location,
@@ -230,8 +235,10 @@ LEFT JOIN (SELECT DISTINCT loop_id, reason, clinician FROM APP.CANCELLATIONS WHE
   ON cx.loop_id = l.loop_id;
 
 -- Ranked worklist: red and amber only, most dangerous first, then most overdue.
+-- days_overdue is shown only for RED: an AMBER follow-up was done elsewhere, so it is not overdue.
 CREATE OR REPLACE VIEW CORE.WORKLIST AS
-SELECT ROW_NUMBER() OVER (ORDER BY tier, priority:score::FLOAT DESC, days_overdue DESC) AS rank, *
+SELECT ROW_NUMBER() OVER (ORDER BY tier, priority:score::FLOAT DESC, days_overdue DESC) AS rank,
+  * REPLACE (IFF(status = 'RED', days_overdue, NULL) AS days_overdue)
 FROM CORE.LOOP_STATUS WHERE status IN ('RED','AMBER') AND clinic_id <> 'EVAL';  -- eval sets never reach the worklist
 
 -- Surveillance continues: a closed surveillance loop opens the next check-up.
