@@ -368,6 +368,17 @@ elif page == "Results":
     st.subheader("Loop status mix")
     st.bar_chart(q("SELECT status, COUNT(*) AS loops FROM FFU.CORE.LOOP_STATUS GROUP BY 1 ORDER BY 1"), x="status", y="loops")
 
+    st.subheader("Payer-side context: imaging volume (Marketplace)")
+    st.caption("From the Snowflake Marketplace listing 'Synthetic Healthcare Data - Clinical and Claims' (synthetic population). "
+               "Context only: not used by the pipeline or the eval.")
+    try:
+        mkt = q("SELECT modality_description AS modality, studies, patients FROM FFU.APP.MKT_IMAGING_VOLUME ORDER BY studies DESC", ttl=3600)
+        st.altair_chart(alt.Chart(mkt).mark_bar(color="#0074D6").encode(
+            x=alt.X("studies:Q", title="Imaging studies"), y=alt.Y("modality:N", sort="-x", title=None),
+            tooltip=["modality", "studies", "patients"]).properties(height=180))
+    except Exception:
+        st.info("Marketplace context view is not available in this account.")
+
 
 # ---------- ROI calculator ----------
 elif page == "ROI calculator":
@@ -380,7 +391,7 @@ elif page == "ROI calculator":
     cts = c1.number_input("Chest CTs per year", min_value=0, value=20000, step=1000,
                           help="ASSUMPTION: example volume for a mid-size hospital. Replace with your own.")
     rate = c1.number_input("Share of chest CTs with an actionable finding (%)", 0.0, 100.0, 31.0, 1.0,
-                           help="Gould MK et al., Am J Respir Crit Care Med 2015: pulmonary nodules were reported on about 31% of chest CTs.") / 100
+                           help="ASSUMPTION, editable: example rate, not from a verified source. Replace with your own audit figure.") / 100
     base = c2.number_input("Baseline completion of recommended follow-up (%)", 0.0, 100.0, 37.0, 1.0,
                            help="Nodule Net, Respiratory Medicine 2022: 442 of 1,202 (37%) completed before a tracking programme.") / 100
     achieved = c2.number_input("Achieved completion with tracking (%)", 0.0, 100.0, round(sim_rate * 100, 1), 1.0,

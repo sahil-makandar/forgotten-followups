@@ -176,3 +176,8 @@
   - user JUDGE_RUZEN (default role FFU_JUDGE, MUST_CHANGE_PASSWORD FALSE) with the user-level policy FFU.SEC.JUDGE_AUTH_POLICY (MFA_ENROLLMENT OPTIONAL);
   - credit guard: the app and the judge run on FFU_APP_WH, capped by FFU_APP_RM at 5 credits/day (suspend immediately).
   - Tested by logging in as JUDGE_RUZEN: role FFU_JUDGE, app visible, masked rows only; raw tables and CREATE are denied.
+
+## Marketplace context and ROI source fix
+
+- **Marketplace listing mounted** by the owner as SYNTHETIC_HEALTHCARE_DATA_CLINICAL_AND_CLAIMS. One read-only secure view, FFU.APP.MKT_IMAGING_VOLUME (sql/16_marketplace_context.sql), counts imaging studies by modality. It is shown as a context chart on the Results page and granted to FFU_ANALYST and FFU_JUDGE (judge query tested). The pipeline, rules, eval and demo are unchanged.
+- **ROI default:** the 31% actionable-finding rate is now labelled 'ASSUMPTION, editable'. The Gould 2015 citation was removed because it was not checked against the paper. Smoke test 20/20; app redeployed.

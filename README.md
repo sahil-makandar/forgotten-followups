@@ -151,7 +151,7 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 
 ## Roadmap
 
-Synthea population, Marketplace synthetic clinical and claims listing (checked: free and available in-region, not mounted), Native App packaging, the agent in Snowflake Intelligence, Git integration, a Hindi patient letter, a fresh-account rebuild test, an outside tester for Set B, and ABDM (India's consent-based health record exchange) as the bridge for Indian hospitals.
+Synthea population, deeper use of the Marketplace synthetic clinical and claims listing (mounted; today it only feeds a context chart on the Results page), Native App packaging, the agent in Snowflake Intelligence, Git integration, a Hindi patient letter, a fresh-account rebuild test, an outside tester for Set B, and ABDM (India's consent-based health record exchange) as the bridge for Indian hospitals.
 
 ## Data and licences
 
