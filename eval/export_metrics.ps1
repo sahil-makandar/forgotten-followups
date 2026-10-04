@@ -19,7 +19,7 @@ $setaF = (Q "SELECT COUNT_IF(exp_loop AND sys_loop) AS tp, COUNT_IF(exp_loop AND
 $procReports = [int]$c.EXTRACTIONS + [int]$c.GENERATED
 
 $out = [ordered]@{
-  protocol = 'Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, labels pending). Impact numbers elsewhere are simulated.'
+  protocol = 'Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, hand-labelled). Impact numbers elsewhere are simulated.'
   set_c = [ordered]@{
     dataset = '700 synthetic index reports (2,000 patients); hidden answer key written before report text'
     run_at = $r.RUN_AT; label = $r.LABEL; state = $r.STATE_NOTE
