@@ -13,6 +13,14 @@ st.set_page_config(page_title="Forgotten Follow-ups", layout="wide")
 
 conn = st.connection("snowflake", connection_name=os.getenv("SNOWFLAKE_DEFAULT_CONNECTION_NAME") or "default")
 
+# Restricted caller's rights connection (container runtime only). Must be created at the top of the script:
+# the caller token is valid for two minutes from session start. It runs as the VIEWER's default role and can only
+# read FFU.SEC.LOOPS_V (caller grants in sql/13_app_access.sql). None when unavailable (for example local runs).
+try:
+    caller_conn = st.connection("snowflake-callers-rights")
+except Exception:  # noqa: BLE001 - any failure means the feature is unavailable here
+    caller_conn = None
+
 STATUS_ICON = {"RED": ":red[RED]", "AMBER": ":orange[AMBER]", "GREEN": ":green[GREEN]",
                "OPEN": ":blue[OPEN]", "REROUTED": ":violet[REROUTED]", "CANCELLED": ":gray[CANCELLED]"}
 
@@ -36,7 +44,7 @@ def sim_date() -> str:
 # ---------- sidebar: demo clock and refresh ----------
 st.sidebar.title("Forgotten Follow-ups")
 st.sidebar.caption("Built on Snowflake. Synthetic data only. Not a diagnostic tool.")
-page = st.sidebar.radio("Page", ["Worklist", "Patient loop timeline", "Copilot chat", "Alerts", "Results"])
+page = st.sidebar.radio("Page", ["Worklist", "Patient 360", "Copilot chat", "Alerts", "Results"])
 st.sidebar.divider()
 st.sidebar.markdown(f"**Demo date:** {sim_date()}")
 new_date = st.sidebar.date_input("Move demo clock to", value=pd.to_datetime(sim_date()))
@@ -70,10 +78,29 @@ if page == "Worklist":
     st.dataframe(view, hide_index=True, use_container_width=True,
                  column_config={"priority": st.column_config.NumberColumn(format="%.1f")})
 
+    # View as analyst: same loops through the role-aware secure view, read with the viewer's own role.
+    st.divider()
+    if st.toggle("View as analyst (masked, via caller's rights)"):
+        if caller_conn is None:
+            st.info("Caller's rights are only available when the app runs in Snowflake (container runtime).")
+        else:
+            role = caller_conn.query("SELECT CURRENT_ROLE() AS r", ttl=0).iloc[0, 0]
+            st.caption(f"Reading FFU.SEC.LOOPS_V as your default role **{role}**. "
+                       "FFU_ANALYST sees hashed patient IDs and masked quotes; coordinators see only their clinics; admins see all.")
+            masked = caller_conn.query("""SELECT loop_id, patient_id, clinic_id, finding_type, tier, status, days_overdue,
+                                                 age_band, quote, status_reason
+                                          FROM FFU.SEC.LOOPS_V WHERE status IN ('RED','AMBER') ORDER BY tier, priority_score DESC LIMIT 100""", ttl=0)
+            st.dataframe(masked, hide_index=True, use_container_width=True)
+
+    errs = q("SELECT report_id, patient_id, report_date, modality, error FROM FFU.CORE.EXTRACTION_ERRORS WHERE set_name NOT IN ('A','B')")
+    if not errs.empty:
+        st.warning(f"{len(errs)} report(s) could not be read by AI extraction and need a person to review them (never dropped silently).")
+        st.dataframe(errs, hide_index=True, use_container_width=True)
+
 
 # ---------- Patient loop timeline ----------
-elif page == "Patient loop timeline":
-    st.header("Patient loop timeline")
+elif page == "Patient 360":
+    st.header("Patient 360")
     pid = st.text_input("Patient ID", value="P09901").strip()
     loops = q("SELECT * FROM FFU.CORE.LOOP_CARD WHERE patient_id = %s ORDER BY priority_score DESC", [pid])
     if loops.empty:

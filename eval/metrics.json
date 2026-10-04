@@ -1,18 +1,300 @@
 ﻿{
-    "protocol":  "Official runs only from the CTRL.DEMO_RESET(TRUE) state: sim_date 2026-10-04, no demo reports or claims, no live-compiled rules.",
-    "dataset":  "Set C: synthetic, 700 index reports from 2,000 patients, hidden answer key written before report text",
-    "run_at":  "2026-10-03 23:26:40.225",
-    "label":  "official-v1",
-    "state":  "clean DEMO_RESET(TRUE) state",
-    "loop_status":  {
-                        "n":  700,
-                        "correct":  694,
-                        "accuracy":  0.9914
-                    },
-    "safety":  {
-                   "false_green":  0,
-                   "false_green_upper95":  0.0261
-               },
-    "missed_loops":  1,
-    "quote_verified_rate":  1
+    "protocol":  "Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, labels pending). Impact numbers elsewhere are simulated.",
+    "set_c":  {
+                  "dataset":  "700 synthetic index reports (2,000 patients); hidden answer key written before report text",
+                  "run_at":  "2026-10-04 03:02:34.241",
+                  "label":  "official-v2-block4",
+                  "state":  "clean DEMO_RESET(TRUE) state",
+                  "loop_status_accuracy":  {
+                                               "n":  700,
+                                               "correct":  694,
+                                               "accuracy":  0.9914
+                                           },
+                  "false_green":  0,
+                  "missed_loops":  1,
+                  "quote_verified_rate":  0.999184
+              },
+    "set_b":  {
+                  "dataset":  "36 trap reports (38 findings); labels written first from docs/RULE_SHEET.md, text by claude-sonnet-4-5, extraction by claude-haiku-4-5; held out from tuning; labels written by the builder, not independent",
+                  "findings":  38,
+                  "status_correct":  38,
+                  "false_greens":  0,
+                  "size":  "30/30",
+                  "tier":  "30/30",
+                  "pathway":  "30/30",
+                  "quotes_verified":  "30/30",
+                  "traps":  [
+                                {
+                                    "trap":  "9 x 7 mm averages to 8 mm",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "AAA at threshold (man 5.5 cm)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "AAA at threshold (woman 5.0 cm)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "AAA just under threshold (man 5.4 cm)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "AAA just under threshold (woman 4.9 cm)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "PET/CT claim closes elsewhere",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "TB history is context only",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "addendum cancels recommendation",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "addendum changes recommendation",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "age under 35 (reroute)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "chest X-ray claim offered as closure",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "chest X-ray hedged",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "chest X-ray negation",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "chest X-ray suspicious mass",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "correct CT claim at another hospital",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "follow-up CT that ignores the nodule",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "follow-up report discusses nodule",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "ground-glass 8 mm",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "hedged wording",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "immunosuppressed (reroute)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "known cancer (reroute)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "low-dose screening CT claim, standard pathway",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "negation",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "never-smoker woman, subsolid (no downgrade)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "part-solid, solid part 4 mm",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "part-solid, solid part 7 mm",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "radiologist differs from guideline (QA flag)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "resolved nodule",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "screening programme (reroute)",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "size given in cm",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "small AAA, 3-year surveillance",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "stable since 2023",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "tiny ground-glass, no follow-up",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "tiny solid nodule, no follow-up",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "two findings in one report",
+                                    "passed":  true
+                                },
+                                {
+                                    "trap":  "two nodules, one actionable",
+                                    "passed":  true
+                                }
+                            ]
+              },
+    "set_a":  {
+                  "dataset":  "120 real Indiana University chest X-ray reports (Open-i, CC BY-NC-ND 4.0); text never committed",
+                  "status":  "extracted; awaiting hand labels in eval/setA/setA_labels.csv"
+              },
+    "baselines":  [
+                      {
+                          "method":  "AI_ONLY",
+                          "set":  "B",
+                          "n":  36,
+                          "correct":  21,
+                          "accuracy":  "0.583",
+                          "ci95":  [
+                                       0.422,
+                                       0.729
+                                   ],
+                          "false_greens":  5,
+                          "false_green_rate":  "0.143",
+                          "false_green_upper95":  null
+                      },
+                      {
+                          "method":  "KEYWORD",
+                          "set":  "B",
+                          "n":  36,
+                          "correct":  18,
+                          "accuracy":  "0.500",
+                          "ci95":  [
+                                       0.345,
+                                       0.655
+                                   ],
+                          "false_greens":  5,
+                          "false_green_rate":  "0.143",
+                          "false_green_upper95":  null
+                      },
+                      {
+                          "method":  "SYSTEM",
+                          "set":  "B",
+                          "n":  36,
+                          "correct":  36,
+                          "accuracy":  "1.000",
+                          "ci95":  [
+                                       0.904,
+                                       1.0
+                                   ],
+                          "false_greens":  0,
+                          "false_green_rate":  "0.000",
+                          "false_green_upper95":  "0.086"
+                      },
+                      {
+                          "method":  "AI_ONLY",
+                          "set":  "C",
+                          "n":  96,
+                          "correct":  58,
+                          "accuracy":  "0.604",
+                          "ci95":  [
+                                       0.504,
+                                       0.696
+                                   ],
+                          "false_greens":  13,
+                          "false_green_rate":  "0.171",
+                          "false_green_upper95":  null
+                      },
+                      {
+                          "method":  "KEYWORD",
+                          "set":  "C",
+                          "n":  700,
+                          "correct":  430,
+                          "accuracy":  "0.614",
+                          "ci95":  [
+                                       0.578,
+                                       0.65
+                                   ],
+                          "false_greens":  94,
+                          "false_green_rate":  "0.162",
+                          "false_green_upper95":  null
+                      },
+                      {
+                          "method":  "SYSTEM",
+                          "set":  "C",
+                          "n":  700,
+                          "correct":  694,
+                          "accuracy":  "0.991",
+                          "ci95":  [
+                                       0.981,
+                                       0.996
+                                   ],
+                          "false_greens":  0,
+                          "false_green_rate":  "0.000",
+                          "false_green_upper95":  "0.005"
+                      }
+                  ],
+    "baseline_notes":  "KEYWORD: recommend/follow-up opens a loop, any later event closes it. AI_ONLY: claude-haiku-4-5 picks the status from report text plus events (Set B all, Set C 96-report sample). False-green rate = wrong greens / loops that should not be green.",
+    "cost":  {
+                 "window":  "whole build day so far (generation + extraction + AI_FILTER + baselines + agent tests), METERING_HISTORY",
+                 "ai_function_credits":  "2.422",
+                 "warehouse_credits":  "2.071",
+                 "agent_credits":  "0.636",
+                 "app_container_credits":  "0.298",
+                 "ai_reports_processed":  1890,
+                 "ai_credits_per_1000_reports_upper_bound":  1.28,
+                 "note":  "Upper bound: includes report generation, baselines and tests, not only production extraction."
+             },
+    "latency":  {
+                    "batch_822_reports_seconds":  17.2,
+                    "per_report_in_batch_ms":  21,
+                    "single_report_seconds":  3.5,
+                    "source":  "INFORMATION_SCHEMA.QUERY_HISTORY for INSERT INTO AI.EXTRACTIONS"
+                },
+    "failure_cases":  [
+                          {
+                              "id":  "R00519 (Set C), RA9 (Set A)",
+                              "what":  "Extraction JSON failed schema validation on every retry, so no loop opened (the 1 missed Set C loop).",
+                              "why":  "Model output did not match the required schema for one finding.",
+                              "mitigation":  "CORE.EXTRACTION_ERRORS review queue shown in the app; never silently dropped."
+                          },
+                          {
+                              "id":  "R00001 (Set C)",
+                              "what":  "Index chest X-ray says mass-like opacity; follow-up CT says 8 mm nodule stable. AI_FILTER did not link them, so the loop stayed RED (needs review) instead of GREEN.",
+                              "why":  "Different wording for the same finding across modalities.",
+                              "mitigation":  "Safe direction (never a false green); shown as needs review. 5 of 700 Set C loops."
+                          },
+                          {
+                              "id":  "Priority saturation",
+                              "what":  "Elapsed share is capped at 200% of the window, so long-overdue tier-1 loops all score 3110.",
+                              "why":  "Design cap to keep tier bands from overlapping.",
+                              "mitigation":  "Worklist breaks ties by days overdue; documented in the rule sheet."
+                          }
+                      ]
 }

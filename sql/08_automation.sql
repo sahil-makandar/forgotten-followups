@@ -39,7 +39,7 @@ BEGIN
   ALTER DYNAMIC TABLE CORE.LOOP_STATUS REFRESH;
   INSERT INTO APP.OUTSIDE_REPORT_REQUESTS (loop_id, patient_id, claim)
   SELECT loop_id, patient_id, amber_evidence FROM CORE.LOOP_STATUS s
-  WHERE status = 'AMBER' AND NOT EXISTS (SELECT 1 FROM APP.OUTSIDE_REPORT_REQUESTS o WHERE o.loop_id = s.loop_id);
+  WHERE status = 'AMBER' AND clinic_id <> 'EVAL' AND NOT EXISTS (SELECT 1 FROM APP.OUTSIDE_REPORT_REQUESTS o WHERE o.loop_id = s.loop_id);
   RETURN 'extracted=' || n_extract || ' followup_checks=' || n_check;
 END;
 $$;
@@ -58,12 +58,12 @@ $$;
 -- Overdue Alert: a tier-1 loop goes red. Serverless, hourly; the app can also run EXECUTE ALERT.
 CREATE OR REPLACE ALERT APP.OVERDUE_ALERT
   SCHEDULE = '60 MINUTE'
-  IF (EXISTS (SELECT 1 FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1
+  IF (EXISTS (SELECT 1 FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1 AND clinic_id <> 'EVAL'
               AND NOT EXISTS (SELECT 1 FROM APP.ALERTS a WHERE a.loop_id = s.loop_id)))
   THEN
     INSERT INTO APP.ALERTS (loop_id, patient_id, tier, message, sim_date)
     SELECT loop_id, patient_id, tier, 'Tier 1 ' || finding_type || ' overdue: ' || status_reason, sim_date
-    FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1
+    FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1 AND clinic_id <> 'EVAL'
       AND NOT EXISTS (SELECT 1 FROM APP.ALERTS a WHERE a.loop_id = s.loop_id);
 ALTER ALERT APP.OVERDUE_ALERT RESUME;
 

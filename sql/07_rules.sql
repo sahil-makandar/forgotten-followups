@@ -232,7 +232,7 @@ LEFT JOIN (SELECT DISTINCT loop_id, reason, clinician FROM APP.CANCELLATIONS WHE
 -- Ranked worklist: red and amber only, most dangerous first, then most overdue.
 CREATE OR REPLACE VIEW CORE.WORKLIST AS
 SELECT ROW_NUMBER() OVER (ORDER BY tier, priority:score::FLOAT DESC, days_overdue DESC) AS rank, *
-FROM CORE.LOOP_STATUS WHERE status IN ('RED','AMBER');
+FROM CORE.LOOP_STATUS WHERE status IN ('RED','AMBER') AND clinic_id <> 'EVAL';  -- eval sets never reach the worklist
 
 -- Surveillance continues: a closed surveillance loop opens the next check-up.
 CREATE OR REPLACE VIEW CORE.NEXT_CHECKS AS

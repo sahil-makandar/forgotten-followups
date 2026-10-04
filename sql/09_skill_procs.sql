@@ -142,7 +142,7 @@ BEGIN
   ALTER DYNAMIC TABLE CORE.LOOP_STATUS REFRESH;
   INSERT INTO APP.ALERTS (loop_id, patient_id, tier, message, sim_date)
   SELECT loop_id, patient_id, tier, 'Tier 1 ' || finding_type || ' overdue: ' || status_reason, sim_date
-  FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1
+  FROM CORE.LOOP_STATUS s WHERE status = 'RED' AND tier = 1 AND clinic_id <> 'EVAL'
     AND NOT EXISTS (SELECT 1 FROM APP.ALERTS a WHERE a.loop_id = s.loop_id);
   res := (SELECT loop_id, patient_id, tier, message, sim_date, fired_at FROM APP.ALERTS
           WHERE :PATIENTS = 'ALL' OR ARRAY_CONTAINS(patient_id::VARIANT, SPLIT(REPLACE(:PATIENTS, ' ', ''), ','))

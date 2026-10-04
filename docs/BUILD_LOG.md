@@ -115,3 +115,38 @@
 **Bundled skills used:** agent-studio (agent spec templates), developing-with-streamlit-in-snowflake (deploy manifest, container runtime).
 
 **App URL:** https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP
+
+## 2026-10-04 - Block 4 (proof and CoCo)
+
+**Set B (trap reports):**
+- 36 cases (38 findings) cover every trap in the brief plus extras: cm sizes, PET/CT claim, low-dose CT claim, unrelated follow-up CT, addendum that cancels, never-smoker woman, TB.
+- Labels were written first (`eval/setB/01_labels.sql`, exported to `eval/setB/setB_labels.csv` for review), text by claude-sonnet-4-5, extraction by claude-haiku-4-5.
+- Result: 38/38 status, 0 false greens; size, tier, action, pathway and quotes each 30/30.
+- Caveat: the labels were written by the builder, not an independent tester.
+
+**Set A (real text):** 120 Indiana University reports sampled with fixed seed 2026 from 340 candidates. Loaded and extracted; the text stays in `data/openi/` (git-ignored). A blank labelling sheet and guide are ready; metrics are pending hand labels.
+
+**Baselines** (`eval/02_baselines.sql`, `EVAL.BASELINE_SUMMARY`): SYSTEM vs KEYWORD vs AI_ONLY, with Wilson 95% CIs and a false-green rate over loops that should not be green.
+- Set C: system 694/700 with 0 false greens; keyword 61.4% with 94 false greens; AI-only 60.4% with 13 false greens.
+- Set B: system 36/36; keyword 18/36; AI-only 21/36.
+
+**Official run:** `official-v2-block4` from the DEMO_RESET(TRUE) state.
+
+**Cost** (METERING_HISTORY, whole day so far): 2.422 AI credits over 1890 AI-processed reports, so at most 1.28 AI credits per 1,000 reports. Warehouse 2.071, agent 0.636, app container 0.298 credits.
+
+**Latency:** 822-report batch in 17.2 s (about 21 ms per report in parallel); a single report takes about 3.5 s.
+
+**Failure cases (3):**
+1. A schema error on R00519 and RA9 means no loop is opened. The new `CORE.EXTRACTION_ERRORS` review queue shows these in the app.
+2. Different wording (mass-like opacity vs nodule) means AI_FILTER fails to confirm, so the loop stays RED as needs review.
+3. Priority saturates at 3110 for long-overdue tier-1 loops; the tie-break is days overdue.
+
+**Hooks:** `.cortex/settings.json`.
+- PreToolUse (`.cortex/hooks/pretooluse.ps1`) blocks SSN- and Aadhaar-like numbers, dropping secure views or policies, and destructive DDL on RAW, KEY, AI and SEC (override: FFU_ALLOW_DESTRUCTIVE=1). `tests/hook_tests.ps1`: 12/12 pass.
+- SessionEnd appends to `docs/coco-log.md`.
+
+**App:**
+- Page renamed to Patient 360.
+- "View as analyst" toggle using restricted caller's rights (`st.connection('snowflake-callers-rights')`), with caller grants limited to FFU.SEC.LOOPS_V and the warehouse. It uses the viewer's DEFAULT role, so masking only shows for a user whose default role is FFU_ANALYST.
+- Extraction-error queue on the Worklist.
+- Eval patients (Sets A and B) sit in clinic EVAL and are kept off the worklist, alerts and outside requests.
