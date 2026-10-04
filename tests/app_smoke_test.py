@@ -43,11 +43,14 @@ try:
     at.multiselect[1].set_value([at.multiselect[1].options[0]]).run(); check("Worklist tier filter", at)
     at.toggle[0].set_value(True).run(); check("Worklist view-as-analyst toggle", at)
 
-    # Patient 360: hero, decoy, empty patient, audit button.
-    at = fresh("Patient 360"); check("Patient 360 loads (P09901)", at)
-    at.text_input[0].set_value("P09902").run(); check("Patient 360 decoy P09902", at)
+    # Patient 360: default patient (worklist rank 1), hero, decoy, audit button.
+    at = fresh("Patient 360"); check("Patient 360 loads (default = worklist rank 1)", at)
+    opts = at.selectbox[0].options
+    results.append(("Patient 360 dropdown has patients", len(opts) > 0, f"{len(opts)} options"))
+    print(("PASS " if opts else "FAIL ") + f"Patient 360 dropdown has patients ({len(opts)})")
+    at.selectbox[0].set_value("P09902").run(); check("Patient 360 decoy P09902", at)
     button(at, "Audit this loop").click().run(); check("Patient 360 audit button", at)
-    at.text_input[0].set_value("NOBODY").run(); check("Patient 360 unknown patient", at)
+    at.selectbox[0].set_value(opts[-1]).run(); check("Patient 360 last patient in list", at)
 
     # Copilot: one example question through the agent, the draft-letter button, and approval.
     at = fresh("Copilot chat"); check("Copilot loads", at)
@@ -64,9 +67,10 @@ try:
     at = fresh("Results"); check("Results loads", at)
     at = fresh("ROI calculator"); check("ROI calculator loads", at)
     at.number_input[0].set_value(50000).run(); check("ROI calculator edit input", at)
-    metrics = {m.label: m.value for m in at.metric}
-    results.append(("ROI recovered > 0", any("recovered" in k.lower() and v not in ("0", "$0") for k, v in metrics.items()), str(metrics)))
-    print(("PASS " if results[-1][1] else "FAIL ") + "ROI recovered > 0  " + str(metrics))
+    shown = " ".join(m.value for m in at.markdown)
+    ok = "15,500" in shown  # 50,000 CTs x 31% actionable findings
+    results.append(("ROI recomputes from inputs", ok, shown[:200]))
+    print(("PASS " if ok else "FAIL ") + "ROI recomputes from inputs")
 
     # Sidebar buttons: refresh, then move the clock (restored below).
     at = fresh("Worklist")
