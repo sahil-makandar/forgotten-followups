@@ -1,0 +1,15 @@
+definition_version: 2
+entities:
+  ffu_app:
+    type: streamlit
+    identifier:
+      name: FFU_APP
+      database: FFU
+      schema: APP
+    title: "Forgotten Follow-ups"
+    query_warehouse: COMPUTE_WH
+    runtime_name: SYSTEM$ST_CONTAINER_RUNTIME_PY3_11
+    compute_pool: SYSTEM_COMPUTE_POOL_CPU
+    main_file: streamlit_app.py
+    artifacts:
+      - streamlit_app.py

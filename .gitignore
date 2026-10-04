@@ -209,3 +209,6 @@ connections.toml
 *.p8
 data/openi/
 
+
+# Streamlit deploy bundle (generated)
+app/output/

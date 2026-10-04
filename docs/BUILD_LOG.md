@@ -73,3 +73,21 @@
 **Tests:** `tests/thyroid/02_check.sql` — 7/7 PASS (6 clinical cases + closure codes).
 
 **Eval:** before 690/700 (98.57%), 0 false greens, 1 missed loop. After: 690/700 (98.57%), 0 false greens, 1 missed loop. No regression.
+
+## 2026-10-04 - Block 3 (copilot and app)
+
+**Built:**
+- **Access control** (`sql/11`): roles `FFU_COORDINATOR`, `FFU_ANALYST` and `FFU_APP_OWNER`; secure views `SEC.LOOPS_V` and `SEC.REPORTS_V` with `CURRENT_ROLE()` checks, mapped through `SEC.ROLE_CLINICS`.
+  - Tested: the coordinator sees clinics C1 and C2 only (312 loops, 444 reports). The analyst sees all 611 loops with hashed patient IDs, `***` quotes, age bands and 0 reports.
+  - `IS_ROLE_IN_SESSION` was replaced, because secondary roles made every role look like ACCOUNTADMIN.
+- **Copilot** (`sql/12`): `APP.RULE_TEXT` (R1-R7, paraphrased), Cortex Search `APP.REPORT_SEARCH` (reports plus rules), view `APP.LOOP_EXPLANATION`, `APP.EXPLAIN_PRIORITY` and the tool procedure `APP.EXPLAIN_PRIORITY_TOOL`, `APP.DRAFT_LETTER` (claude-sonnet-4-5; drafts are logged as PENDING_CLINICIAN_APPROVAL), `APP.APPROVE_DRAFT`, `APP.VERIFY_QUOTE`, and semantic view `APP.LOOPS_SV` over the secure view.
+- **Agent** `APP.FFU_AGENT` (`agent/FFU_AGENT.agent.yaml`) with tools loop_analytics (Analyst), search_reports_and_rules, explain_priority and draft_letter.
+  - `cortex agent-studio agent-write` could not take multi-line YAML from PowerShell, so the agent is created with `agent/create_agent.sql` (CREATE AGENT FROM SPECIFICATION, same YAML).
+  - `APP.ASK_AGENT` wraps `DATA_AGENT_RUN` for the app.
+- **Streamlit** `FFU.APP.FFU_APP` (container runtime, `SYSTEM_COMPUTE_POOL_CPU`). Pages: Worklist, Patient loop timeline (quote highlighted, audit button), Copilot chat with approvals, Alerts, Results.
+
+**Checks:**
+- Agent "who is first and why": rank 1 of 211, score breakdown, verified report line, and rules R3 and R7.
+- "Closed only by outside claims": 49, which matches the AMBER count.
+- Explain tool: 2 bugs fixed. A UDF parameter name shadowed a column, and a UDF with a subquery could not be used inside LISTAGG.
+- Secure view fixes: `days_overdue` now counts RED loops only, and `closed_by_outside_claim_only` now means status AMBER.
