@@ -59,8 +59,12 @@ try:
     button(at, "Draft the patient letter").click().run(); check("Copilot draft letter (agent tool)", at)
     at = fresh("Copilot chat")
     if at.text_input:
-        at.text_input[0].set_value("Smoke Test Clinician").run()
-        button(at, "Approve").click().run(); check("Copilot approve draft", at)
+        at.text_input[0].set_value("Smoke Test Clinician")  # form field: submitted together with the button click
+    button(at, "Approve").click().run()
+    if at.error:
+        results.append(("Copilot approve draft", False, at.error[0].value)); print("FAIL Copilot approve draft\n     " + at.error[0].value)
+    else:
+        check("Copilot approve draft", at)
 
     # Alerts and Results.
     at = fresh("Alerts"); check("Alerts loads", at)

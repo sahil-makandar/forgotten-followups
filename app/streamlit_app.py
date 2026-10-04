@@ -117,7 +117,7 @@ if page == "Worklist":
     st.caption("Red (overdue) and amber (done elsewhere, outside report needed). Most dangerous tier first, then priority, then days overdue. "
                "Click a row to open the patient.")
     wl = q("""SELECT rank, patient_id, finding_type, COALESCE(avg_mm || ' mm', aorta_cm || ' cm') AS size, tier, status,
-                     days_overdue, ROUND(priority:score::FLOAT, 1) AS priority, clinician_acked, patient_notified, status_reason
+                     days_overdue::INT AS days_overdue, ROUND(priority:score::FLOAT)::INT AS priority, clinician_acked, patient_notified, status_reason
               FROM FFU.CORE.WORKLIST ORDER BY rank LIMIT 300""")
     k1, k2, k3, k4 = st.columns(4)
     kpi(k1, "On worklist", len(wl), "Red and amber loops needing action")
@@ -136,9 +136,12 @@ if page == "Worklist":
         "rank": "Rank", "patient_id": "Patient", "finding_type": "Finding", "size": "Size", "tier": "Tier", "status": "Status",
         "days_overdue": "Days overdue", "priority": "Priority", "clinician_acked": "Clinician acked",
         "patient_notified": "Patient told", "status_reason": "Why"}).reset_index(drop=True)
+    # Whole days; blank (not "None") for amber loops, which are not overdue.
+    view["Days overdue"] = view["Days overdue"].map(lambda v: "" if pd.isna(v) else str(int(v)))
     event = st.dataframe(style_status(view), hide_index=True, width="stretch", on_select="rerun", selection_mode="single-row",
                          row_height=56, key="worklist",
-                         column_config={"Priority": st.column_config.NumberColumn(format="%.1f"),
+                         column_config={"Priority": st.column_config.NumberColumn(format="%d"),
+                                        "Days overdue": st.column_config.TextColumn(),
                                         "Why": st.column_config.TextColumn(width="large")})
     rows = event.selection.rows if event and hasattr(event, "selection") else []
     if rows:
@@ -301,10 +304,16 @@ elif page == "Copilot chat":
         with st.expander(label):
             st.text(d["draft"])
             if d["status"] == "PENDING_CLINICIAN_APPROVAL":
-                who = st.text_input("Clinician name", key=f"who-{d['draft_id']}")
-                if st.button("Approve (logged)", key=f"ok-{d['draft_id']}", disabled=not who):
-                    run("CALL FFU.APP.APPROVE_DRAFT(?, ?)", [d["draft_id"], who])
-                    st.rerun()
+                # Own form and key per draft: the approver name only ever comes from this box, never from the chat.
+                with st.form(key=f"approve-{d['draft_id']}", clear_on_submit=True):
+                    who = st.text_input("Clinician name (approver)", key=f"approver-{d['draft_id']}").strip()
+                    if st.form_submit_button("Approve (logged)"):
+                        asked = {m["content"].strip() for m in st.session_state.chat if m["role"] == "user"}
+                        if not who or who in asked or len(who) > 80:
+                            st.error("Enter the approving clinician's name.")
+                        else:
+                            run("CALL FFU.APP.APPROVE_DRAFT(?, ?)", [d["draft_id"], who])
+                            st.rerun()
 
 
 # ---------- Alerts ----------
