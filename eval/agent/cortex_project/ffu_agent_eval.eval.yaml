@@ -1,0 +1,9 @@
+evaluation:
+  agent: FFU.APP.FFU_AGENT
+  agent_version: DEFAULT
+  dataset_fqn: FFU.EVAL.FFU_AGENT_GOLDEN_DS
+metrics:
+  - name: answer_correctness
+    version: v3_0
+  - name: tool_selection_accuracy
+    version: v3_0

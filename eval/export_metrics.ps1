@@ -17,6 +17,8 @@ $setaBlind = Q "SELECT * FROM FFU.EVAL.SETA_SUMMARY_BLIND ORDER BY method"
 $setaNow = Q "SELECT * FROM FFU.EVAL.SETA_SUMMARY ORDER BY method"
 $setaF = (Q "SELECT COUNT_IF(exp_loop AND sys_loop) AS tp, COUNT_IF(exp_loop AND sys_loop AND sys_type = exp_type) AS type_ok, COUNT_IF(exp_loop AND sys_loop AND sys_hedged = exp_hedged) AS hedged_ok, COUNT_IF(extraction_error) AS extraction_errors FROM FFU.EVAL.SETA_RESULTS")[0]
 $procReports = [int]$c.EXTRACTIONS + [int]$c.GENERATED
+$ae = (Q "SELECT ANY_VALUE(run_name) AS run_name, ANY_VALUE(judge_model) AS judge, ANY_VALUE(agent_version) AS ver, COUNT(*) AS n, COUNT_IF(correct) AS correct, COUNT_IF(answer_correctness = 1) AS fully_correct, ROUND(AVG(answer_correctness), 3) AS avg_ac, COUNT_IF(tool_selection_accuracy = 1) AS right_tool FROM FFU.EVAL.AGENT_EVAL_RESULTS WHERE run_name = (SELECT MAX_BY(run_name, stored_at) FROM FFU.EVAL.AGENT_EVAL_RESULTS)")[0]
+$aeMiss = Q "SELECT q_id, input_query, answer_correctness FROM FFU.EVAL.AGENT_EVAL_RESULTS WHERE run_name = '$($ae.RUN_NAME)' AND answer_correctness < 1 ORDER BY answer_correctness, q_id"
 
 $out = [ordered]@{
   protocol = 'Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, hand-labelled). Impact numbers elsewhere are simulated.'
@@ -40,6 +42,15 @@ $out = [ordered]@{
     note = 'Blind run missed 7 of 24: real X-rays describe mediastinal contours and masses that extraction typed as OTHER with a CT recommendation. Rule fix: on an X-ray, any non-negated finding with a CT/PET/biopsy recommendation opens a loop. The fix was informed by Set A, so after_cxr_rule_fix is no longer blind; Sets B and C were re-run unchanged.' }
   baselines = @($base | % { [ordered]@{ method = $_.METHOD; set = $_.SET_NAME; n = $_.N; correct = $_.CORRECT; accuracy = $_.ACCURACY; ci95 = @($_.ACC_CI_LOW, $_.ACC_CI_HIGH); false_greens = $_.FALSE_GREENS; false_green_rate = $_.FALSE_GREEN_RATE; false_green_upper95 = $_.FALSE_GREEN_UPPER95_RULE_OF_3 } })
   baseline_notes = 'KEYWORD: recommend/follow-up opens a loop, any later event closes it. AI_ONLY: claude-haiku-4-5 picks the status from report text plus events (Set B all, Set C 96-report sample). False-green rate = wrong greens / loops that should not be green.'
+  copilot_agent_eval = [ordered]@{
+    method = 'Snowflake native Cortex Agent evaluation (EXECUTE_AI_EVALUATION) on FFU.APP.FFU_AGENT, golden set FFU.EVAL.AGENT_GOLDEN (15 questions: 4 worklist, 5 loop counts, 4 rules, 2 letters), metrics answer_correctness and tool_selection_accuracy v3_0; correct = answer_correctness >= 0.5'
+    run_name = $ae.RUN_NAME; agent_version = $ae.VER; judge_model = $ae.JUDGE
+    questions = $ae.N; correct = $ae.CORRECT; fully_correct = $ae.FULLY_CORRECT; avg_answer_correctness = [double]$ae.AVG_AC; right_tool = $ae.RIGHT_TOOL
+    not_fully_correct = @($aeMiss | % { [ordered]@{ q_id = $_.Q_ID; question = $_.INPUT_QUERY; answer_correctness = [double]$_.ANSWER_CORRECTNESS } })
+    note = 'All 4 low scores (0.33) are loop-count questions: the agent counts loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (for example 208 vs 162 RED). The golden answers accept either number, but the judge still marked these down.' }
+  data_quality = [ordered]@{
+    status = 'not available'
+    note = 'Data Metric Functions could not be attached: the hospital account returns "Unsupported feature DATA METRIC FUNCTION" and "Data quality monitoring feature is not enabled for this account" (error 510130). A consumer also cannot attach DMFs to the shared payer table. The payer account (Enterprise) does run DMFs.' }
   cost = [ordered]@{
     window = 'whole build day so far (generation + extraction + AI_FILTER + baselines + agent tests), METERING_HISTORY'
     ai_function_credits = $c.AI_CREDITS; warehouse_credits = $c.WH_CREDITS; agent_credits = $c.AGENT_CREDITS; app_container_credits = $c.APP_CREDITS
@@ -60,7 +71,7 @@ $out = [ordered]@{
   failure_cases = @(
     [ordered]@{ id = 'R00519 (Set C), RA9 (Set A)'; what = 'Extraction JSON failed schema validation on every retry, so no loop opened (the 1 missed Set C loop).'; why = 'Model output did not match the required schema for one finding.'; mitigation = 'CORE.EXTRACTION_ERRORS review queue shown in the app; never silently dropped.' },
     [ordered]@{ id = 'R00001 (Set C)'; what = 'Index chest X-ray says mass-like opacity; follow-up CT says 8 mm nodule stable. AI_FILTER did not link them, so the loop stayed RED (needs review) instead of GREEN.'; why = 'Different wording for the same finding across modalities.'; mitigation = 'Safe direction (never a false green); shown as needs review. 5 of 700 Set C loops.' },
-    [ordered]@{ id = 'Priority saturation'; what = 'Elapsed share is capped at 200% of the window, so long-overdue tier-1 loops all score 3110.'; why = 'Design cap to keep tier bands from overlapping.'; mitigation = 'Worklist breaks ties by days overdue; documented in the rule sheet.' })
+    [ordered]@{ id = 'Priority saturation'; what = 'Elapsed share is capped at 600% of the due window (900 points), so long-overdue tier-1 loops can all reach 3950.'; why = 'Design cap to keep tier bands from overlapping.'; mitigation = 'Worklist breaks ties by days overdue; documented in the rule sheet.' })
 }
 $out | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $root 'eval/metrics.json') -Encoding utf8
 Write-Host "Wrote eval/metrics.json (official run $($r.LABEL), cost per 1,000 <= $($out.cost.ai_credits_per_1000_reports_upper_bound) AI credits)"

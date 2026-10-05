@@ -1,4 +1,4 @@
-{
+﻿{
     "protocol":  "Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, hand-labelled). Impact numbers elsewhere are simulated.",
     "set_c":  {
                   "dataset":  "700 synthetic index reports (2,000 patients); hidden answer key written before report text",
@@ -356,14 +356,67 @@
                       }
                   ],
     "baseline_notes":  "KEYWORD: recommend/follow-up opens a loop, any later event closes it. AI_ONLY: claude-haiku-4-5 picks the status from report text plus events (Set B all, Set C 96-report sample). False-green rate = wrong greens / loops that should not be green.",
+    "copilot_agent_eval":  {
+                               "method":  "Snowflake native Cortex Agent evaluation (EXECUTE_AI_EVALUATION) on FFU.APP.FFU_AGENT, golden set FFU.EVAL.AGENT_GOLDEN (15 questions: 4 worklist, 5 loop counts, 4 rules, 2 letters), metrics answer_correctness and tool_selection_accuracy v3_0; correct = answer_correctness \u003e= 0.5",
+                               "run_name":  "ffu_agent_eval_20261005",
+                               "agent_version":  "VERSION$1",
+                               "judge_model":  "claude-sonnet-4-6",
+                               "questions":  15,
+                               "correct":  11,
+                               "fully_correct":  8,
+                               "avg_answer_correctness":  0.755,
+                               "right_tool":  15,
+                               "not_fully_correct":  [
+                                                         {
+                                                             "q_id":  "G05",
+                                                             "question":  "How many loops are red (overdue) right now?",
+                                                             "answer_correctness":  0.33
+                                                         },
+                                                         {
+                                                             "q_id":  "G07",
+                                                             "question":  "How many red abdominal aortic aneurysm loops are there?",
+                                                             "answer_correctness":  0.33
+                                                         },
+                                                         {
+                                                             "q_id":  "G08",
+                                                             "question":  "How many red loops are tier 1?",
+                                                             "answer_correctness":  0.33
+                                                         },
+                                                         {
+                                                             "q_id":  "G09",
+                                                             "question":  "How many red loops have a patient who was never notified?",
+                                                             "answer_correctness":  0.33
+                                                         },
+                                                         {
+                                                             "q_id":  "G06",
+                                                             "question":  "How many loops were closed only by outside claims?",
+                                                             "answer_correctness":  0.67
+                                                         },
+                                                         {
+                                                             "q_id":  "G10",
+                                                             "question":  "Does a chest X-ray close a CT follow-up loop for a lung nodule?",
+                                                             "answer_correctness":  0.67
+                                                         },
+                                                         {
+                                                             "q_id":  "G15",
+                                                             "question":  "Draft a specialist referral for loop L-R00334-0",
+                                                             "answer_correctness":  0.67
+                                                         }
+                                                     ],
+                               "note":  "All 4 low scores (0.33) are loop-count questions: the agent counts loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (for example 208 vs 162 RED). The golden answers accept either number, but the judge still marked these down."
+                           },
+    "data_quality":  {
+                         "status":  "not available",
+                         "note":  "Data Metric Functions could not be attached: the hospital account returns \"Unsupported feature DATA METRIC FUNCTION\" and \"Data quality monitoring feature is not enabled for this account\" (error 510130). A consumer also cannot attach DMFs to the shared payer table. The payer account (Enterprise) does run DMFs."
+                     },
     "cost":  {
                  "window":  "whole build day so far (generation + extraction + AI_FILTER + baselines + agent tests), METERING_HISTORY",
-                 "ai_function_credits":  "2.436",
-                 "warehouse_credits":  "2.790",
-                 "agent_credits":  "1.446",
-                 "app_container_credits":  "0.813",
+                 "ai_function_credits":  "2.534",
+                 "warehouse_credits":  "4.306",
+                 "agent_credits":  "3.226",
+                 "app_container_credits":  "3.753",
                  "ai_reports_processed":  1890,
-                 "ai_credits_per_1000_reports_upper_bound":  1.29,
+                 "ai_credits_per_1000_reports_upper_bound":  1.34,
                  "note":  "Upper bound: includes report generation, baselines and tests, not only production extraction."
              },
     "latency":  {
@@ -399,10 +452,9 @@
                           },
                           {
                               "id":  "Priority saturation",
-                              "what":  "Elapsed share is capped at 200% of the window, so long-overdue tier-1 loops all score 3110.",
+                              "what":  "Elapsed share is capped at 600% of the due window (900 points), so long-overdue tier-1 loops can all reach 3950.",
                               "why":  "Design cap to keep tier bands from overlapping.",
                               "mitigation":  "Worklist breaks ties by days overdue; documented in the rule sheet."
                           }
                       ]
 }
-

@@ -56,6 +56,7 @@ Source: `eval/metrics.json`. The official Set C run comes from the `CTRL.DEMO_RE
 A false green is a loop wrongly marked done. Set A cannot have false greens, because real reports have no follow-up events, so it counts false alarms instead.
 
 - **Quotes verified:** 99.9% of evidence quotes match the source word for word.
+- **Copilot answer accuracy: 11 of 15** (Snowflake native Cortex Agent evaluation, judge claude-sonnet-4-6, golden set `FFU.EVAL.AGENT_GOLDEN`, `eval/agent/`). 8 of 15 fully correct; right tool chosen 15 of 15. The 4 weakest answers (score 0.33) are loop counts: the copilot counts all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist leaves it out (for example 208 vs 162 red loops).
 - **Cost:** about 1.3 AI credits per 1,000 reports (an upper bound from one build day).
 - **Impact on the synthetic hospital (SIMULATED, not a real-world result):** follow-up completion goes from 35.9% (hospital records only) to 50.9% (with the payer share) to 78.8% (with worklist recall).
 
@@ -92,7 +93,7 @@ Everything is in [.cortex/](.cortex/). Each skill calls one fixed stored procedu
 
 ## Snowflake features used
 
-Snowpark Python UDF, AI_COMPLETE (structured JSON), AI_FILTER, AI_PARSE_DOCUMENT, Dynamic Tables, Streams and Tasks, serverless Alerts, Cortex Search, semantic view, Cortex Agent (DATA_AGENT_RUN), Secure Data Sharing across accounts, row access and masking policies (payer side), role-aware secure views (hospital side), Streamlit in Snowflake (container runtime, restricted caller's rights), resource monitor, METERING_HISTORY, and the Snowflake CLI.
+Snowpark Python UDF, AI_COMPLETE (structured JSON), AI_FILTER, AI_PARSE_DOCUMENT, Dynamic Tables, Streams and Tasks, serverless Alerts, Cortex Search, semantic view, Cortex Agent (DATA_AGENT_RUN), native Cortex Agent evaluation (EXECUTE_AI_EVALUATION), Secure Data Sharing across accounts, row access and masking policies (payer side), role-aware secure views (hospital side), Streamlit in Snowflake (container runtime, restricted caller's rights), resource monitor, METERING_HISTORY, and the Snowflake CLI.
 
 ## Rebuild from scratch
 
@@ -157,6 +158,7 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 - **Trial account.** The prototype runs on Snowflake trial accounts, with credit guards (resource monitors) on the warehouses, so it may stop when the trial or the daily credit quota runs out.
 - **The app runs with owner's rights**, so it shows full detail by default. The masked analyst view is shown with `sql/demo/analyst_view.sql`, or with the caller's-rights toggle for a user whose default role is FFU_ANALYST or FFU_JUDGE.
 - **The thyroid rule is not shipped.** It is added live by `guideline-rule-compiler`; its tests are in `tests/thyroid/`.
+- **No Data Metric Functions.** DMFs (NULL_COUNT, DUPLICATE_COUNT, FRESHNESS) were planned for the reports, loops and payer claims, but the hospital account returns "Data quality monitoring feature is not enabled for this account", and a consumer cannot attach DMFs to a shared table. The payer account does run them.
 - **The cost figure is an upper bound** from one build day (`METERING_HISTORY` is hourly).
 - **No fresh-account rebuild test** has been run yet.
 

@@ -1,0 +1,4 @@
+version: 1
+artifacts:
+  - path: ffu_agent_eval.eval.yaml
+    type: eval_config

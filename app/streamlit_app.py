@@ -359,6 +359,19 @@ elif page == "Results":
         hide_index=True, width="stretch")
     st.caption("Set A counts false alarms (loops opened that the label says are not needed); a false green cannot happen there because real reports have no follow-up events.")
 
+    # Copilot: Snowflake native agent evaluation (EXECUTE_AI_EVALUATION) over the 15-question golden set.
+    ae = q("""SELECT run_name, input_query, expected_tool, answer_correctness, tool_selection_accuracy, correct, judge_model
+              FROM FFU.EVAL.AGENT_EVAL_RESULTS
+              WHERE run_name = (SELECT MAX_BY(run_name, stored_at) FROM FFU.EVAL.AGENT_EVAL_RESULTS) ORDER BY q_id""")
+    if not ae.empty:
+        st.subheader(f"Copilot answer accuracy: {int(ae['correct'].sum())} of {len(ae)}")
+        st.caption(f"Native Cortex Agent evaluation, judge {ae['judge_model'].iloc[0]}; correct = answer_correctness of 0.5 or more. "
+                   f"Right tool chosen: {int((ae['tool_selection_accuracy'] == 1).sum())} of {len(ae)}. Run {ae['run_name'].iloc[0]}.")
+        with st.expander("Per-question scores"):
+            st.dataframe(ae.drop(columns=["run_name", "judge_model"]).rename(columns={
+                "input_query": "Question", "expected_tool": "Expected tool", "answer_correctness": "Answer correctness",
+                "tool_selection_accuracy": "Tool selection", "correct": "Correct"}), hide_index=True, width="stretch")
+
     runs = q("""SELECT run_at, label, official, state_note, n, correct, accuracy, false_green, false_green_upper95,
                        missed_loops, quote_verified_rate FROM FFU.EVAL.RUNS ORDER BY run_at DESC LIMIT 50""")
     off = runs[runs["official"] == True]  # noqa: E712
