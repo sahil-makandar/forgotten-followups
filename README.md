@@ -5,8 +5,8 @@
 Forgotten Follow-ups reads radiology reports with Snowflake Cortex AI, pulls out every recommended follow-up with a word-for-word evidence quote, and then applies deterministic SQL rules (Fleischner 2017, chest X-ray "recommend CT", SVS 2018 AAA) to open a loop for each one. It closes loops using hospital records plus a payer's claims, brought in through Secure Data Sharing, so a follow-up done at another hospital is still seen. It ranks what is overdue in a worklist with a transparent priority score, and a Cortex Agent explains "why first" and drafts recall letters for a clinician to approve. AI extracts; rules decide. Built on Snowflake for the Snowflake CoCo CLI Hackathon 2026 (GCC Edition), Track 4: Patient and Member 360 and Clinical or Regulatory Document Copilot. All data is synthetic except Set A (real, de-identified, never committed). This is not a diagnostic tool, and it never overrides a radiologist.
 
 - **Deployed app:** https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP (judge access details are in the submission form; no credentials are kept in this repo)
-- **CoCo project files:** [.cortex/](.cortex/) (skills, hooks, plan). **Session log:** [docs/coco-log.md](docs/coco-log.md).
-- **Demo video:** `[GIF / video placeholder]`
+- **CoCo project files:** [.cortex/](.cortex/) (skills, hooks, plan). **CoCo evidence:** [docs/coco-evidence.md](docs/coco-evidence.md). **Session log:** [docs/coco-log.md](docs/coco-log.md).
+- Demo video: VIDEO_LINK_HERE
 - **Demo script:** [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). **Rule sheet:** [docs/RULE_SHEET.md](docs/RULE_SHEET.md). **Plan:** [docs/PLAN_SPEC.md](docs/PLAN_SPEC.md). **Build log:** [docs/BUILD_LOG.md](docs/BUILD_LOG.md).
 
 ## Architecture
@@ -92,7 +92,19 @@ Everything is in [.cortex/](.cortex/). Each skill calls one fixed stored procedu
 
 ## Snowflake features used
 
-Snowpark Python UDF, AI_COMPLETE (structured JSON), AI_FILTER, AI_PARSE_DOCUMENT, Dynamic Tables, Streams and Tasks, serverless Alerts, Cortex Search, semantic view, Cortex Agent (DATA_AGENT_RUN), Secure Data Sharing across accounts, row access and masking policies (payer side), role-aware secure views (hospital side), Streamlit in Snowflake (container runtime, restricted caller's rights), a Workspace Notebook (`eval/eval_harness.ipynb`), resource monitor, METERING_HISTORY, and the Snowflake CLI.
+Snowpark Python UDF, AI_COMPLETE (structured JSON), AI_FILTER, AI_PARSE_DOCUMENT, Dynamic Tables, Streams and Tasks, serverless Alerts, Cortex Search, semantic view, Cortex Agent (DATA_AGENT_RUN), Secure Data Sharing across accounts, row access and masking policies (payer side), role-aware secure views (hospital side), Streamlit in Snowflake (container runtime, restricted caller's rights), resource monitor, METERING_HISTORY, and the Snowflake CLI.
+
+## Rebuild from scratch
+
+`setup.ps1` at the repo root runs the runbook below in order for both connections and stops at the first failing step.
+
+```powershell
+.\setup.ps1 -DryRun                          # print the 24 steps only, run nothing
+.\setup.ps1                                  # run them (connections 'hospital' and 'payer')
+.\setup.ps1 -Hospital myhosp -Payer mypayer  # other connection names
+```
+
+Before a real run, edit the consumer locator in `sql/payer/01_payer.sql` (ALTER SHARE) and the provider org.account in `sql/05_mount_share.sql`. Create the judge user by hand (no password is kept in any file), and mount the Marketplace listing before `sql/16`. A full rebuild in a fresh account has not been tested yet.
 
 ## Setup (runbook)
 

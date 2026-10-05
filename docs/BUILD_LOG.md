@@ -181,3 +181,8 @@
 
 - **Marketplace listing mounted** by the owner as SYNTHETIC_HEALTHCARE_DATA_CLINICAL_AND_CLAIMS. One read-only secure view, FFU.APP.MKT_IMAGING_VOLUME (sql/16_marketplace_context.sql), counts imaging studies by modality. It is shown as a context chart on the Results page and granted to FFU_ANALYST and FFU_JUDGE (judge query tested). The pipeline, rules, eval and demo are unchanged.
 - **ROI default:** the 31% actionable-finding rate is now labelled 'ASSUMPTION, editable'. The Gould 2015 citation was removed because it was not checked against the paper. Smoke test 20/20; app redeployed.
+
+## 2026-10-04 - Thyroid rule (guideline-rule-compiler, live demo)
+
+**Rule:** ACR 2015 incidental thyroid (Hoang JK et al., JACR 2015;12:143-150). File: `sql/rules/thyroid.sql`.
+**Tests:** 7/7 PASS. **Eval:** before 690/700 (98.57%), after 690/700 (98.57%), 0 false greens. No regression.
