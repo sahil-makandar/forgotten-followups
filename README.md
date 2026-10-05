@@ -148,7 +148,7 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 ## Known limits
 
 - **Synthetic data.** Sets B and C and the demo are synthetic, generated in Snowflake from a hidden answer key (Synthea was not used). The 37% baseline is built into the data design, so the simulated impact is not a real-world result.
-- **Set B labels were written by the build agent** from the rule sheet, before the reports were generated. There was no outside tester.
+- **Set B review.** Set B labels were drafted by the build agent, then reviewed against the rule sheet by team member Rojina Mallick, who has clinical laboratory experience as a phlebotomist and lab technician (38 of 38 agreed, no changes; see eval/setB/setB_review.csv). She is not a radiologist, and the rule sheet still needs sign-off from a radiologist.
 - **The Set A rule fix came after seeing Set A.** The blind result is 17/24 (91.7%); the 21/24 (95.0%) figure includes one chest X-ray rule fix made after looking at the misses, so it is not a blind number. Open-i has no demographics, so routing on Set A uses default patient values.
 - **Three failure cases:**
   1. Two reports failed the extraction JSON schema, so no loop opened. They now appear in a review queue.
@@ -162,7 +162,7 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 
 ## Roadmap
 
-A Synthea population, deeper use of the Marketplace clinical and claims listing (today it only feeds a context chart on the Results page), an outside tester for Set B, a fresh-account rebuild test, Native App packaging, the agent in Snowflake Intelligence, Git integration, a Hindi patient letter, and ABDM (India's consent-based health record exchange) as the bridge for Indian hospitals.
+A Synthea population, deeper use of the Marketplace clinical and claims listing (today it only feeds a context chart on the Results page), radiologist sign-off of the rule sheet, a fresh-account rebuild test, Native App packaging, the agent in Snowflake Intelligence, Git integration, a Hindi patient letter, and ABDM (India's consent-based health record exchange) as the bridge for Indian hospitals.
 
 ## Data and licences
 

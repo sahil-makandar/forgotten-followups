@@ -26,7 +26,7 @@ $out = [ordered]@{
     loop_status_accuracy = [ordered]@{ n = $r.N; correct = $r.CORRECT; accuracy = [math]::Round([double]$r.ACCURACY, 4) }
     false_green = $r.FALSE_GREEN; missed_loops = $r.MISSED_LOOPS; quote_verified_rate = [double]$r.QUOTE_VERIFIED_RATE }
   set_b = [ordered]@{
-    dataset = '36 trap reports (38 findings); labels written first from docs/RULE_SHEET.md, text by claude-sonnet-4-5, extraction by claude-haiku-4-5; held out from tuning; labels written by the builder, not independent'
+    dataset = '36 trap reports (38 findings); labels written first from docs/RULE_SHEET.md, text by claude-sonnet-4-5, extraction by claude-haiku-4-5; held out from tuning; labels drafted by the build agent, then reviewed against the rule sheet by team member Rojina Mallick (clinical laboratory experience as a phlebotomist and lab technician; 38 of 38 agreed, no changes; eval/setB/setB_review.csv); not a radiologist, rule sheet still needs radiologist sign-off'
     findings = $setb[0].FINDINGS; status_correct = $setb[0].STATUS_CORRECT; false_greens = $setb[0].FALSE_GREENS
     size = "$($setb[0].SIZE_OK)/$($setb[0].SIZE_N)"; tier = "$($setb[0].TIER_OK)/$($setb[0].TIER_N)"; pathway = "$($setb[0].PATHWAY_OK)/$($setb[0].PATHWAY_N)"
     quotes_verified = "$($setb[0].QUOTES_OK)/$($setb[0].QUOTES_N)"

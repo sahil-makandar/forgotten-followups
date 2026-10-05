@@ -212,3 +212,6 @@ data/openi/
 
 # Streamlit deploy bundle (generated)
 app/output/
+
+# Live-demo output of guideline-rule-compiler (added live, never shipped)
+sql/rules/thyroid.sql

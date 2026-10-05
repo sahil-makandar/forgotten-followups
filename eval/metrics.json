@@ -1,4 +1,4 @@
-﻿{
+{
     "protocol":  "Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, hand-labelled). Impact numbers elsewhere are simulated.",
     "set_c":  {
                   "dataset":  "700 synthetic index reports (2,000 patients); hidden answer key written before report text",
@@ -15,7 +15,7 @@
                   "quote_verified_rate":  0.999184
               },
     "set_b":  {
-                  "dataset":  "36 trap reports (38 findings); labels written first from docs/RULE_SHEET.md, text by claude-sonnet-4-5, extraction by claude-haiku-4-5; held out from tuning; labels written by the builder, not independent",
+                  "dataset":  "36 trap reports (38 findings); labels written first from docs/RULE_SHEET.md, text by claude-sonnet-4-5, extraction by claude-haiku-4-5; held out from tuning; labels drafted by the build agent, then reviewed against the rule sheet by team member Rojina Mallick (clinical laboratory experience as a phlebotomist and lab technician; 38 of 38 agreed, no changes; eval/setB/setB_review.csv); not a radiologist, rule sheet still needs radiologist sign-off",
                   "findings":  38,
                   "status_correct":  38,
                   "false_greens":  0,

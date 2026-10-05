@@ -49,6 +49,6 @@ Each slide is headed by the rubric line it serves: Real-World Relevance 30, Tech
 - 3 honest failure cases (one line each).
 
 **10. Limits, roadmap, ask** *(Solution Completeness)*
-- Limits: synthetic data; Set B labels written by the build agent, no outside tester; Set A rule fix after seeing results; trial account; owner's-rights app.
+- Limits: synthetic data; Set B labels drafted by the build agent, then reviewed by team member Rojina Mallick (38 of 38 agreed; not a radiologist, rule sheet still needs radiologist sign-off); Set A rule fix after seeing results; trial account; owner's-rights app.
 - Roadmap: deeper use of the Marketplace clinical and claims listing (mounted; context chart today), Native App, Snowflake Intelligence, ABDM for Indian hospitals, Hindi letter.
 - Close: "0 false greens - nobody is told they're done when they aren't."

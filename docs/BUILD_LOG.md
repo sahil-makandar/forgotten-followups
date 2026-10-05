@@ -186,3 +186,9 @@
 
 **Rule:** ACR 2015 incidental thyroid (Hoang JK et al., JACR 2015;12:143-150). File: `sql/rules/thyroid.sql`.
 **Tests:** 7/7 PASS. **Eval:** before 690/700 (98.57%), after 690/700 (98.57%), 0 false greens. No regression.
+
+## 2026-10-05 - Set B review and repo cleanup
+
+- **Set B review:** the labels drafted by the build agent were reviewed against the rule sheet by team member Rojina Mallick (clinical laboratory experience as a phlebotomist and lab technician): 38 of 38 AGREE, 0 corrections (eval/setB/setB_review.csv). She is not a radiologist; the rule sheet still needs radiologist sign-off. README, eval/export_metrics.ps1, eval/metrics.json and the deck outline now say this.
+- **RULE_SHEET AAA tiers made explicit** (5.0 to 5.4 cm men tier 2 at 6 months, 4.0 to 4.9 cm tier 2 at 12 months, 3.0 to 3.9 cm tier 3); sql/07_rules.sql already behaved this way, so no rule change.
+- **sql/rules/thyroid.sql** untracked, git-ignored and deleted locally, so the live guideline-rule-compiler demo starts clean.

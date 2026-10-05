@@ -22,7 +22,10 @@ Source: MacMahon H et al., Radiology 2017. https://pubs.rsna.org/doi/full/10.114
 ## 3. Abdominal aortic aneurysm (SVS 2018 practice guidelines)
 Source: Chaikof EL et al., J Vasc Surg 2018;67:2-77.
 - **5.5 cm or more (men), or 5.0 cm or more (women):** vascular surgery referral within 1 month. **Tier 1.**
-- **Otherwise, surveillance ultrasound:** about every 6 months at 5.0 to 5.4 cm, about every 12 months at 4.0 to 4.9 cm (tier 2), and about every 3 years at 3.0 to 3.9 cm (tier 3).
+- **Otherwise, surveillance ultrasound** (tiers as implemented in `sql/07_rules.sql`):
+  - **5.0 to 5.4 cm (men):** tier 2, ultrasound about every 6 months (due in 5 to 7 months).
+  - **4.0 to 4.9 cm:** tier 2, ultrasound about every 12 months (due in 11 to 13 months).
+  - **3.0 to 3.9 cm:** tier 3, ultrasound about every 3 years (due in 35 to 37 months).
 - **What closes the loop:** aorta ultrasound (76775, 76770), CT abdomen (74177, 74178) or CTA (75635). A referral loop closes with a consult (99242 to 99245, 99203 to 99205).
 - Surveillance continues: closing one loop opens the next check-up.
 
