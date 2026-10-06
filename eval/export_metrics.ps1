@@ -48,7 +48,7 @@ $out = [ordered]@{
     run_name = $ae.RUN_NAME; agent_version = $ae.VER; judge_model = $ae.JUDGE
     questions = $ae.N; correct = $ae.CORRECT; fully_correct = $ae.FULLY_CORRECT; avg_answer_correctness = [double]$ae.AVG_AC; right_tool = $ae.RIGHT_TOOL
     not_fully_correct = @($aeMiss | % { [ordered]@{ q_id = $_.Q_ID; question = $_.INPUT_QUERY; answer_correctness = [double]$_.ANSWER_CORRECTNESS } })
-    summary = "Copilot answer accuracy: $($ae.CORRECT) of $($ae.N) ($($aePrev.CORRECT) of $($aePrev.N) before fixing a clinic-filter mismatch)"
+    summary = "Copilot: $($ae.CORRECT) of $($ae.N) answered right or partly right ($($ae.FULLY_CORRECT) fully right), up from $($aePrev.CORRECT) of $($aePrev.N) before a clinic-filter fix; right tool $($ae.RIGHT_TOOL) of $($ae.N)"
     before_clinic_filter_fix = [ordered]@{ run_name = 'ffu_agent_eval_20261005'; questions = $aePrev.N; correct = $aePrev.CORRECT; fully_correct = $aePrev.FULLY_CORRECT; avg_answer_correctness = [double]$aePrev.AVG_AC; right_tool = $aePrev.RIGHT_TOOL }
     note = 'First run: the agent counted loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (208 vs 162 RED), so the 4 count questions scored 0.33. Fix: the semantic view now reads SEC.LOOPS_COPILOT_V (SEC.LOOPS_V without clinic EVAL), the same scope as the worklist. In the second run every count matches the worklist; right tool fell from 15 to 13 because 2 explain questions scored 0.5 on tool selection, which the fix did not touch (likely run-to-run variation, not verified).' }
   data_quality = [ordered]@{

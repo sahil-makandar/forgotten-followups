@@ -99,7 +99,7 @@ Source: [eval/metrics.json](eval/metrics.json). The official Set C run comes fro
 A false green is a loop wrongly marked done. Set A cannot have false greens, because real reports have no follow-up events, so it counts false alarms instead.
 
 - **Quotes verified:** 99.9% of evidence quotes match the source word for word.
-- **Copilot answer accuracy: 15 of 15 (11 of 15 before fixing a clinic-filter mismatch).**
+- **Copilot: 15 of 15 answered right or partly right (9 fully right), up from 11 of 15 before a clinic-filter fix; right tool 13 of 15.**
   - Snowflake native Cortex Agent evaluation, judge claude-sonnet-4-6, golden set `FFU.EVAL.AGENT_GOLDEN` ([eval/agent/](eval/agent/)).
   - Correct means an answer-correctness score of 0.5 or more; 9 of 15 were fully correct.
   - In the first run the copilot counted the EVAL clinic that holds Set A and Set B patients, which the worklist leaves out (208 vs 162 red loops). The semantic view now reads `SEC.LOOPS_COPILOT_V`, the worklist's scope, so chat and worklist give the same numbers.

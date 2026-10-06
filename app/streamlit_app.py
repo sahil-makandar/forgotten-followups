@@ -380,9 +380,12 @@ elif page == "Results":
         # First run (before the copilot used the worklist's clinic filter), kept for comparison.
         first = q("""SELECT COUNT_IF(correct) AS c, COUNT(*) AS n FROM FFU.EVAL.AGENT_EVAL_RESULTS
                      WHERE run_name = 'ffu_agent_eval_20261005'""")
-        before = (f" ({int(first['c'].iloc[0])} of {int(first['n'].iloc[0])} before fixing a clinic-filter mismatch)"
+        before = (f", up from {int(first['c'].iloc[0])} of {int(first['n'].iloc[0])} before a clinic-filter fix"
                   if ae["run_name"].iloc[0] != "ffu_agent_eval_20261005" and int(first["n"].iloc[0]) else "")
-        st.subheader(f"Copilot answer accuracy: {int(ae['correct'].sum())} of {len(ae)}{before}")
+        n, fully = len(ae), int((ae["answer_correctness"] == 1).sum())
+        right_tool = int((ae["tool_selection_accuracy"] == 1).sum())
+        st.subheader(f"Copilot: {int(ae['correct'].sum())} of {n} answered right or partly right ({fully} fully right)"
+                     f"{before}; right tool {right_tool} of {n}")
         st.caption(f"Native Cortex Agent evaluation, judge {ae['judge_model'].iloc[0]}; correct = answer_correctness of 0.5 or more. "
                    f"Right tool chosen: {int((ae['tool_selection_accuracy'] == 1).sum())} of {len(ae)}. Run {ae['run_name'].iloc[0]}.")
         with st.expander("Per-question scores"):

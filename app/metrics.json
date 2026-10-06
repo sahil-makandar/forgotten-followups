@@ -1,4 +1,4 @@
-﻿{
+{
     "protocol":  "Official Set C run only from the CTRL.DEMO_RESET(TRUE) state. All data synthetic except Set A (real, de-identified, hand-labelled). Impact numbers elsewhere are simulated.",
     "set_c":  {
                   "dataset":  "700 synthetic index reports (2,000 patients); hidden answer key written before report text",
@@ -398,7 +398,7 @@
                                                              "answer_correctness":  0.67
                                                          }
                                                      ],
-                               "summary":  "Copilot answer accuracy: 15 of 15 (11 of 15 before fixing a clinic-filter mismatch)",
+                               "summary":  "Copilot: 15 of 15 answered right or partly right (9 fully right), up from 11 of 15 before a clinic-filter fix; right tool 13 of 15",
                                "before_clinic_filter_fix":  {
                                                                 "run_name":  "ffu_agent_eval_20261005",
                                                                 "questions":  15,
