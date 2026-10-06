@@ -14,3 +14,4 @@ entities:
     artifacts:
       - streamlit_app.py
       - .streamlit/config.toml
+      - metrics.json            # copy of eval/metrics.json, written by eval/export_metrics.ps1

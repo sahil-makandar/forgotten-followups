@@ -77,4 +77,5 @@ $out = [ordered]@{
     [ordered]@{ id = 'Priority saturation'; what = 'Elapsed share is capped at 600% of the due window (900 points), so long-overdue tier-1 loops can all reach 3950.'; why = 'Design cap to keep tier bands from overlapping.'; mitigation = 'Worklist breaks ties by days overdue; documented in the rule sheet.' })
 }
 $out | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $root 'eval/metrics.json') -Encoding utf8
+Copy-Item (Join-Path $root 'eval/metrics.json') (Join-Path $root 'app/metrics.json')  # snapshot for the app's Under the hood page
 Write-Host "Wrote eval/metrics.json (official run $($r.LABEL), cost per 1,000 <= $($out.cost.ai_credits_per_1000_reports_upper_bound) AI credits)"

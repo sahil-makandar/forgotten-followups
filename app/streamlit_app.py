@@ -1,10 +1,11 @@
 """Forgotten Follow-ups - care coordination app (Streamlit in Snowflake). All data is synthetic.
 
-Pages: Worklist, Patient 360, Copilot chat, Alerts, Results, ROI calculator.
+Pages: Worklist, Patient 360, Copilot chat, Alerts, Results, ROI calculator, Under the hood.
 Every action calls the same stored procedures the CoCo skills and the Task use.
 """
 import html
 import json
+import os
 
 import altair as alt
 import pandas as pd
@@ -26,7 +27,7 @@ STATUS_COLOURS = {  # background, text
     "RED": ("#FDE2E1", "#B3261E"), "AMBER": ("#FFF1D6", "#8A5300"), "GREEN": ("#E3F5E6", "#1E7B34"),
     "OPEN": ("#ECEFF1", "#455A64"), "REROUTED": ("#EFE5FA", "#6A3FA0"), "CANCELLED": ("#ECEFF1", "#455A64"),
 }
-PAGES = ["Worklist", "Patient 360", "Copilot chat", "Alerts", "Results", "ROI calculator"]
+PAGES = ["Worklist", "Patient 360", "Copilot chat", "Alerts", "Results", "ROI calculator", "Under the hood"]
 
 
 def q(sql: str, params=None, ttl=0) -> pd.DataFrame:
@@ -464,3 +465,106 @@ elif page == "ROI calculator":
     kpi(m3, "Estimated recovered revenue per year", f"${recovered * price:,.0f}", "Recovered x reimbursement")
     st.caption(f"Recovered = findings x (achieved - baseline) = {findings:,.0f} x ({achieved:.0%} - {base:.0%}). "
                "Staff time: East Alabama reported tracking work fell from about 5 hours a week to 15 minutes.")
+
+
+# ---------- Under the hood (read-only) ----------
+elif page == "Under the hood":
+    st.header("Under the hood")
+    st.caption("Read live from Snowflake (INFORMATION_SCHEMA and SHOW commands, read-only). "
+               "Anything the app role cannot read shows as 'not visible to this role'; features this account's edition "
+               "lacks show as 'not available in this account'.")
+    HIDDEN = "not visible to this role"
+    UNSUPPORTED = "not available in this account"
+
+    def safe_count(sql: str):
+        try:
+            return int(q(sql).iloc[0, 0])
+        except Exception:  # noqa: BLE001 - missing privilege or object: say so instead of failing
+            return HIDDEN
+
+    def safe_show(sql: str):
+        """Run a SHOW command through a cursor (read-only). Returns a DataFrame, or a short reason it could not run."""
+        try:
+            cur = conn.cursor()
+            try:
+                cur.execute(sql)
+                return pd.DataFrame(cur.fetchall(), columns=[d[0].lower() for d in cur.description])
+            finally:
+                cur.close()
+        except Exception as e:  # noqa: BLE001
+            return UNSUPPORTED if "Unsupported feature" in str(e) else HIDDEN
+
+    def show_count(sql: str):
+        df = safe_show(sql)
+        return df if isinstance(df, str) else len(df)
+
+    st.subheader("Flow")
+    st.graphviz_chart("""digraph {
+      rankdir=LR; node [shape=box, style="rounded,filled", fillcolor="#F4F8FC", color="#0074D6", fontname="Helvetica", fontsize=11];
+      subgraph cluster_payer { label="Payer account"; color="#90A4AE"; claims [label="Claims-derived events\\nrow access + masking"]; }
+      subgraph cluster_hosp { label="Hospital account"; color="#90A4AE";
+        report [label="Scan report\\n(text or PDF)"]; extract [label="AI_COMPLETE extraction\\n+ verified quote"];
+        rules [label="SQL rules\\n(Dynamic Tables)"]; status [label="Red / amber / green", shape=diamond, fillcolor="#FFF1D6"];
+        alert [label="Serverless Alert"]; worklist [label="Worklist\\n(this app)"]; agent [label="Cortex Agent"];
+        letter [label="Letter draft\\nclinician approves"];
+        report -> extract -> rules -> status; status -> alert; status -> worklist; status -> agent -> letter; }
+      claims -> status [label="Secure Data Share", fontsize=10];
+    }""")
+
+    st.subheader("Objects built")
+    counts = [
+        ("Tables", safe_count("SELECT COUNT(*) FROM FFU.INFORMATION_SCHEMA.TABLES WHERE table_type = 'BASE TABLE' AND is_dynamic = 'NO' AND table_schema <> 'INFORMATION_SCHEMA'")),
+        ("Dynamic Tables", safe_count("SELECT COUNT(*) FROM FFU.INFORMATION_SCHEMA.TABLES WHERE is_dynamic = 'YES'")),
+        ("Streams", show_count("SHOW STREAMS IN DATABASE FFU")),
+        ("Tasks", show_count("SHOW TASKS IN DATABASE FFU")),
+        ("Alerts", show_count("SHOW ALERTS IN DATABASE FFU")),
+        ("Stored procedures", safe_count("SELECT COUNT(*) FROM FFU.INFORMATION_SCHEMA.PROCEDURES")),
+        ("UDFs", safe_count("SELECT COUNT(*) FROM FFU.INFORMATION_SCHEMA.FUNCTIONS")),
+        ("Cortex Search services", show_count("SHOW CORTEX SEARCH SERVICES IN DATABASE FFU")),
+        ("Semantic views", show_count("SHOW SEMANTIC VIEWS IN DATABASE FFU")),
+        ("Cortex Agents", show_count("SHOW AGENTS IN DATABASE FFU")),
+        ("Secure views", safe_count("SELECT COUNT(*) FROM FFU.INFORMATION_SCHEMA.VIEWS WHERE is_secure = 'YES'")),
+        ("Authentication policies", show_count("SHOW AUTHENTICATION POLICIES IN DATABASE FFU")),
+        ("Masking policies (hospital)", show_count("SHOW MASKING POLICIES IN DATABASE FFU")),
+        ("Row access policies (hospital)", show_count("SHOW ROW ACCESS POLICIES IN DATABASE FFU")),
+    ]
+    st.dataframe(pd.DataFrame([{"Object": k, "Count": str(v)} for k, v in counts]), hide_index=True, width="stretch")
+    st.caption("The row access and masking policies on the shared claims live in the payer account (Enterprise), so they are not "
+               "counted here; the hospital account is Standard edition and has no row access policies.")
+
+    st.subheader("Dynamic Tables")
+    dts = safe_show("SHOW DYNAMIC TABLES IN DATABASE FFU")
+    if isinstance(dts, str):
+        st.info(f"Dynamic Tables: {dts}.")
+    else:
+        st.dataframe(dts.assign(name=dts["schema_name"] + "." + dts["name"],
+                                data_timestamp=dts["data_timestamp"].astype(str).str[:19])[
+            ["name", "target_lag", "refresh_mode", "scheduling_state", "rows", "data_timestamp"]].rename(columns={
+                "name": "Dynamic Table", "target_lag": "Target lag", "refresh_mode": "Refresh mode",
+                "scheduling_state": "State", "rows": "Rows", "data_timestamp": "Data as of (last refresh)"}),
+            hide_index=True, width="stretch")
+
+    st.subheader("Cortex AI usage (from the pipeline's AI cache tables)")
+    def ai_row(fn, what, sql):
+        try:
+            r = q(sql).iloc[0]
+            return {"Function": fn, "Used for": what, "Calls cached": int(r["n"]),
+                    "Latest call": "" if pd.isna(r["latest"]) else str(r["latest"])[:19]}
+        except Exception:  # noqa: BLE001
+            return {"Function": fn, "Used for": what, "Calls cached": HIDDEN, "Latest call": ""}
+    st.dataframe(pd.DataFrame([
+        ai_row("AI_COMPLETE", "Extract findings and the verbatim quote", "SELECT COUNT(*) AS n, MAX(extracted_at) AS latest FROM FFU.AI.EXTRACTIONS"),
+        ai_row("AI_FILTER", "Confirm a follow-up report discusses the finding", "SELECT COUNT(*) AS n, MAX(checked_at) AS latest FROM FFU.AI.FOLLOWUP_CHECKS"),
+        ai_row("AI_PARSE_DOCUMENT", "Read outside-hospital PDFs", "SELECT COUNT(*) AS n, MAX(parsed_at) AS latest FROM FFU.AI.PARSED_DOCS"),
+    ]), hide_index=True, width="stretch")
+    st.caption("Each input is processed once and cached, so these are the AI calls the pipeline has kept, not every call ever made.")
+
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "metrics.json"), encoding="utf-8-sig") as fh:
+            cost = json.load(fh)["cost"]
+        c1, c2 = st.columns(2)
+        kpi(c1, "AI credits per 1,000 reports", f"{cost['ai_credits_per_1000_reports_upper_bound']:.2f}", "Upper bound, from eval/metrics.json")
+        kpi(c2, "AI-processed reports", f"{int(cost['ai_reports_processed']):,}", f"{cost['ai_function_credits']} AI function credits")
+        st.caption(cost.get("note", ""))
+    except Exception:  # noqa: BLE001 - snapshot missing in a local run
+        st.info("Cost snapshot (eval/metrics.json) is not available in this deployment.")

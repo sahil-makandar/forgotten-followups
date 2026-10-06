@@ -75,6 +75,7 @@ try:
     ok = "15,500" in shown  # 50,000 CTs x 31% actionable findings
     results.append(("ROI recomputes from inputs", ok, shown[:200]))
     print(("PASS " if ok else "FAIL ") + "ROI recomputes from inputs")
+    at = fresh("Under the hood"); check("Under the hood loads", at)
 
     # Sidebar buttons: refresh, then move the clock (restored below).
     at = fresh("Worklist")

@@ -210,3 +210,7 @@
 - Fixed: INGEST_REPORT refuses a missing id, an unknown patient, empty text and reports duplicates as skipped (bad files no longer vanish silently); INGEST_OUTSIDE_PDF refuses non-radiology PDFs with AI_FILTER; DRAFT_LETTER accepts only PATIENT or REFERRAL; APPROVE_DRAFT needs a real name; ASK_AGENT refuses over-long input instead of silently cutting it; the chat ignores blank input; the role test now really switches role.
 - Known limits: no size plausibility check (0 mm, 999 mm); the hook blocks literal DROP text in a copilot question; payer demo claims EDEMO001/002 are only removed by the demo-reset skill's payer step.
 - Tests: tests/red_team_guards.sql (10), tests/red_team_roles.ps1 (24), tests/red_team_intake.sql. All test data deleted; DEMO_RESET(TRUE) run at the end. Smoke test 20/20.
+
+## 2026-10-06 - Under the hood page
+
+- New read-only app page: object counts live from INFORMATION_SCHEMA and SHOW (37 tables, 4 Dynamic Tables with last refresh, 1 stream, 1 task, 1 alert, 18 procedures, 3 UDFs, 1 Cortex Search service, 1 semantic view, 1 agent, 4 secure views, 1 authentication policy), AI cache usage (AI_COMPLETE 1009, AI_FILTER 144, AI_PARSE_DOCUMENT 0 after the demo reset) and the cost per 1,000 reports from a deployed copy of eval/metrics.json (app/metrics.json, written by export_metrics.ps1). Failures show 'not visible to this role'; row access policies show 'not available in this account' (Standard edition). Graphviz flow diagram. Smoke test 21/21.

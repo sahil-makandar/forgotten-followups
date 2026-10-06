@@ -117,6 +117,7 @@ A false green is a loop wrongly marked done. Set A cannot have false greens, bec
 5. **Worklist, "View as analyst":** the same loops read with your judge role, with hashed patient ids and masked quotes.
 6. **Results:** the comparison charts, the copilot accuracy and the official Set C run.
 7. **ROI calculator:** every input is editable; defaults marked ASSUMPTION are not from a publication.
+8. **Under the hood:** live counts of the objects built (read with INFORMATION_SCHEMA and SHOW), Dynamic Table refresh times, the AI cache usage and the cost per 1,000 reports.
 
 The app runs with owner's rights, so the sidebar "Demo controls" change the shared demo state for everyone.
 
@@ -165,7 +166,7 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 - `powershell -File tests/hook_tests.ps1`
 - `powershell -File tests/check_answer_key_isolation.ps1`
 - `snow sql -c hospital -f tests/priority_scale.sql`
-- `.venv\Scripts\python.exe tests\app_smoke_test.py` (20 headless AppTest checks)
+- `.venv\Scripts\python.exe tests\app_smoke_test.py` (21 headless AppTest checks)
 - Red team ([docs/RED_TEAM.md](docs/RED_TEAM.md), 41 cases): `snow sql -c hospital -f tests/red_team_guards.sql`, `powershell -File tests/red_team_roles.ps1`, `snow sql -c hospital -f tests/red_team_intake.sql`
 
 **Eval:** run `eval/setB/*.sql`, `eval/setA/*.sql`, `eval/02_baselines.sql` and `eval/03_simulated_impact.sql`, then `eval/export_metrics.ps1`.
