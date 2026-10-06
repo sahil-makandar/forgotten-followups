@@ -20,12 +20,25 @@ description: "Ingest new radiology reports and turn them into tracked follow-up 
 
 `PROCESS_NEW_REPORTS` may return 0 rows if the background Task already processed the report. That is normal; use `SHOW_LOOPS`.
 
+### INGEST_REPORT takes exactly 7 arguments, in this order (live signature)
+`CORE.INGEST_REPORT(REPORT_ID, PATIENT_ID, REPORT_DATE, MODALITY, CPT, FACILITY, TEXT)`
+
+FACILITY is the 6th argument and is never optional; the report text is always the 7th and last. A call with 6 arguments fails with "Invalid argument types for function 'INGEST_REPORT'". Example for `demo/inbox/RDEMO001_P09901_2026-10-04_CT_CHEST_71275.txt`:
+
+```sql
+CALL FFU.CORE.INGEST_REPORT('RDEMO001', 'P09901', '2026-10-04', 'CT_CHEST', '71275', 'HOSPITAL', $$<file text>$$);
+```
+
+`INGEST_OUTSIDE_PDF` also takes 7 arguments: `(FILE_NAME, REPORT_ID, PATIENT_ID, REPORT_DATE, MODALITY, CPT, FACILITY)`, with FACILITY last.
+
+The message tells you what happened: `ingested <id>`, `skipped <id>: already ingested` (fine on a re-run), or `not ingested ...` (unknown patient, empty text or missing id: report it and continue).
+
 ## Steps
 1. List the `*.pdf` and `*.txt` files in the folder. If both a `.pdf` and a `.txt` share a REPORT_ID, use the PDF only (AI_PARSE_DOCUMENT reads it). The file name is `<REPORT_ID>_<PATIENT_ID>_<YYYY-MM-DD>_<MODALITY>_<CPT>.<ext>`.
    - `MODALITY` may contain an underscore (for example `CT_CHEST`): the last part is the CPT, and everything between the date and the CPT is the modality.
    - FACILITY is `HOSPITAL` unless the folder name contains `outside`; then use `Outside hospital`.
    - If a name doesn't fit, ask the user. Don't guess.
-2. Read each `.txt` file and call `INGEST_REPORT` with the text exactly as-is (if the text contains `$$`, stop and tell the user). For each `.pdf`, upload it and call `INGEST_OUTSIDE_PDF`; if it says "review by hand", report that and continue.
+2. Read each `.txt` file and call `INGEST_REPORT` with all 7 arguments (FACILITY 6th) and the text exactly as-is (if the text contains `$$`, stop and tell the user). For each `.pdf`, upload it and call `INGEST_OUTSIDE_PDF`; if it says "review by hand" or "not ingested", report that and continue.
 3. Call `PROCESS_NEW_REPORTS` once. If it returns 0 rows, call `SHOW_LOOPS` for each patient.
 4. Print one compact block per loop, ALWAYS with these fields copied from the result (never `--`; if a value is NULL, write `n/a`):
    - loop_id, patient, finding and size, tier, status, due date;
