@@ -1,51 +1,94 @@
- # Forgotten Follow-ups
+# Forgotten Follow-ups
 
-**When a scan report says "repeat this scan in 6 months" or "refer to a surgeon", this copilot makes sure it actually happens, and proves every step with the exact source line.**
+**When a scan report says "repeat this scan in 6 months" or "refer to a surgeon", this copilot makes sure it happens, and proves every step with the exact source line.**
 
-Forgotten Follow-ups reads radiology reports with Snowflake Cortex AI, pulls out every recommended follow-up with a word-for-word evidence quote, and then applies deterministic SQL rules (Fleischner 2017, chest X-ray "recommend CT", SVS 2018 AAA) to open a loop for each one. It closes loops using hospital records plus a payer's claims, brought in through Secure Data Sharing, so a follow-up done at another hospital is still seen. It ranks what is overdue in a worklist with a transparent priority score, and a Cortex Agent explains "why first" and drafts recall letters for a clinician to approve. AI extracts; rules decide. Built on Snowflake for the Snowflake CoCo CLI Hackathon 2026 (GCC Edition), Track 4: Patient and Member 360 and Clinical or Regulatory Document Copilot. All data is synthetic except Set A (real, de-identified, never committed). This is not a diagnostic tool, and it never overrides a radiologist.
+- **Problem:** follow-ups recommended in scan reports get lost. Only 37% of recommended lung nodule follow-ups were completed before a tracking programme. Hospital trackers also cannot see tests done at another hospital.
+- **What it does:** AI reads each report and quotes the recommendation word for word. SQL rules decide the due date and tier. Hospital records and the payer's claims (through Secure Data Sharing) decide if it was done. AI extracts; rules decide.
+- **Result:** 99.1% loop-status accuracy with 0 false greens on 700 synthetic reports, 36 of 36 on trap reports, and 21 of 24 real X-ray follow-ups found (17 of 24 blind).
 
-- **Deployed app:** https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP (judge access details are in the submission form; no credentials are kept in this repo)
-- **CoCo project files:** [.cortex/](.cortex/) (skills, hooks, plan). **CoCo evidence:** [docs/coco-evidence.md](docs/coco-evidence.md). **Session log:** [docs/coco-log.md](docs/coco-log.md).
-- Demo video: VIDEO_LINK_HERE
-- **Demo script:** [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). **Rule sheet:** [docs/RULE_SHEET.md](docs/RULE_SHEET.md). **Plan:** [docs/PLAN_SPEC.md](docs/PLAN_SPEC.md). **Build log:** [docs/BUILD_LOG.md](docs/BUILD_LOG.md).
+**Links:** [Deployed app](https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP) | Demo video: VIDEO_LINK_HERE | [Deck outline](docs/DECK_OUTLINE.md) | [Demo script](docs/DEMO_SCRIPT.md) | [Rule sheet](docs/RULE_SHEET.md) | [Plan](docs/PLAN_SPEC.md) | [Build log](docs/BUILD_LOG.md) | [CoCo evidence](docs/coco-evidence.md) | [Red team](docs/RED_TEAM.md)
 
-## Architecture
+Built on Snowflake for the Snowflake CoCo CLI Hackathon 2026 (GCC Edition), Track 4: Patient and Member 360 and Clinical or Regulatory Document Copilot. All data is synthetic except Set A (real, de-identified, never committed). This is not a diagnostic tool, and it never overrides a radiologist. Judge access details are in the submission form; no credentials are kept in this repo.
+
+## The problem
+
+- **A reported lawsuit (an allegation, not a ruling).** It alleges that an 8 mm lung nodule with a recommended follow-up CT in 6 to 12 months was never communicated, and that the patient was diagnosed with stage 4A lung cancer about three years later. ([Fox Carolina, Sept 2026](https://www.foxcarolina.com/2026/09/16/woman-was-not-told-about-lung-nodule-years-before-terminal-cancer-diagnosis-lawsuit-alleges/))
+- **How often follow-ups are missed.** Only 37% of recommended lung nodule follow-ups were completed before a tracking programme, and 74% after. ([Nodule Net, Respiratory Medicine 2022](https://www.sciencedirect.com/science/article/pii/S0954611122000026))
+- **The gap.** Hospital trackers only see their own records. When the follow-up happens at another hospital, they cannot tell if it was done. Payer claims can show this, so this project brings them in through **Secure Data Sharing**, with no data copied.
+
+## How it works
 
 ```mermaid
 flowchart LR
- subgraph PAYER["Payer account (Enterprise, no AI)"]
-  C[Claims-derived events] --> F[FOLLOWUP_EVENTS_FROM_CLAIMS<br/>row access + masking policies]
-  F -. Secure Data Share .-> S((FFU_SHARE))
- end
- subgraph HOSP["Hospital account (Standard, AI)"]
-  R[RAW.REPORTS<br/>text + outside PDFs] -->|Stream + Task| X[AI.EXTRACTIONS<br/>AI_COMPLETE JSON + quote<br/>AI_PARSE_DOCUMENT]
-  X --> DT1[CORE.FINDINGS DT<br/>quote verified]
-  DT1 --> DT2[CORE.LOOPS DT<br/>Fleischner / AAA / routing]
-  EX[CORE.EXTRA_RULES DT<br/>live-compiled rules] --> DT2
-  S --> SH[PAYER_SHARE db]
-  SH --> DT3
-  DT2 --> DT3[CORE.LOOP_STATUS DT<br/>+ AI_FILTER checks, CTRL.SIM_DATE,<br/>Python PRIORITY UDF]
-  DT3 --> AL[Serverless Alert -> APP.ALERTS]
-  DT3 --> SEC[SEC secure views<br/>role-aware masking]
-  SEC --> SV[Semantic view] --> AG[Cortex Agent<br/>explain_priority, draft_letter]
-  R --> CS[Cortex Search<br/>reports + rules] --> AG
-  SEC --> APP[Streamlit app]
-  AG --> APP
- end
- subgraph COCO["CoCo CLI skills (.cortex/skills)"]
-  K1[followup-intake] --> P1[CORE.PROCESS_NEW_REPORTS]
-  K2[loop-auditor] --> P2[CORE.AUDIT_LOOP]
-  K3[guideline-rule-compiler] --> EX
-  K4[demo-reset] --> P3[CTRL.DEMO_RESET]
- end
- P1 --> DT3
+  subgraph PAYER["Payer account (Enterprise, no AI)"]
+    C["Claims-derived follow-up events<br/>row access + masking policies"]
+  end
+  subgraph HOSP["Hospital account (Standard, AI)"]
+    R["Scan report<br/>text or outside PDF"] --> X["AI_COMPLETE extraction<br/>+ quote verified word for word"]
+    X --> RU["SQL rules in Dynamic Tables<br/>Fleischner, chest X-ray CT, AAA, routing"]
+    H["Hospital records<br/>reports, orders, notifications"] --> ST
+    RU --> ST{"Red, amber or green"}
+    ST --> AL["Serverless Alert<br/>overdue tier 1"]
+    ST --> WL["Ranked worklist<br/>Streamlit app"]
+    ST --> AG["Cortex Agent copilot"]
+    AG --> LT["Letter draft<br/>clinician must approve"]
+  end
+  C -- "Secure Data Share" --> ST
 ```
+
+1. AI reads every scan report and pulls out each "do this, by this date", with a **verbatim evidence quote** checked word for word against the source.
+2. **Deterministic SQL rules** apply Fleischner 2017 lung nodules, chest X-ray "recommend CT", SVS 2018 AAA and pathway routing. AI never decides a status.
+3. Hospital records **and the payer's shared claims** are checked, and each loop is marked:
+   - **RED**: overdue;
+   - **AMBER**: done elsewhere, outside report requested;
+   - **GREEN**: a follow-up report exists and AI_FILTER confirms it discusses the finding;
+   - **REROUTED**: moved to another pathway, with the reason shown.
+4. **The wrong test never closes a loop.** A chest X-ray claim cannot close a CT loop.
+5. A transparent priority UDF ranks the worklist. The copilot explains "why first" with citations and drafts recall letters that a clinician must approve.
 
 **One code path:** the CoCo skills, the Task and the app's buttons all call the same stored procedures.
 
+## Snowflake features used
+
+| Feature | What we use it for | Proof |
+| --- | --- | --- |
+| AI_COMPLETE (structured JSON) | Extract findings, sizes and the verbatim quote from each report; draft letters | [sql/06_extraction.sql](sql/06_extraction.sql), [sql/12_copilot.sql](sql/12_copilot.sql) |
+| AI_FILTER | Confirm a follow-up report discusses the finding before GREEN; refuse PDFs that are not radiology reports | [sql/08_automation.sql](sql/08_automation.sql), [sql/14_outside_pdf.sql](sql/14_outside_pdf.sql) |
+| AI_PARSE_DOCUMENT | Read outside-hospital report PDFs from an encrypted stage | [sql/14_outside_pdf.sql](sql/14_outside_pdf.sql) |
+| Snowpark Python UDF | Transparent priority score with its breakdown | [sql/07_rules.sql](sql/07_rules.sql) |
+| Dynamic Tables | Findings, rules, loops and loop status, refreshed in a chain | [sql/07_rules.sql](sql/07_rules.sql) |
+| Streams and Tasks | Pick up new reports and run the pipeline | [sql/08_automation.sql](sql/08_automation.sql) |
+| Serverless Alert | Fire when a tier 1 loop goes overdue | [sql/08_automation.sql](sql/08_automation.sql) |
+| Secure Data Sharing (two accounts) | Payer claims shared to the hospital with no copy | [sql/payer/01_payer.sql](sql/payer/01_payer.sql), [sql/05_mount_share.sql](sql/05_mount_share.sql) |
+| Row access and masking policies | Payer side: partner rows only, SSN masked | [sql/payer/01_payer.sql](sql/payer/01_payer.sql) |
+| Secure views (role-aware) | Hospital side: hashed ids and masked quotes for analyst and judge roles | [sql/11_access_control.sql](sql/11_access_control.sql), [sql/12_copilot.sql](sql/12_copilot.sql) |
+| Cortex Search | Search report text and the paraphrased rules | [sql/12_copilot.sql](sql/12_copilot.sql) |
+| Semantic view | Counts and filters over loops for the copilot | [sql/12_copilot.sql](sql/12_copilot.sql) |
+| Cortex Agent (DATA_AGENT_RUN) | The copilot, with four tools, called from the app | [agent/create_agent.sql](agent/create_agent.sql), [sql/13_app_access.sql](sql/13_app_access.sql) |
+| Native Cortex Agent evaluation (EXECUTE_AI_EVALUATION) | Score the copilot on a 15-question golden set | [eval/agent/cortex_project/ffu_agent_eval.eval.yaml](eval/agent/cortex_project/ffu_agent_eval.eval.yaml), [eval/agent/02_store_results.sql](eval/agent/02_store_results.sql) |
+| Streamlit in Snowflake (container runtime, restricted caller's rights) | The app, and its "View as analyst" toggle | [app/snowflake.yml](app/snowflake.yml), [app/streamlit_app.py](app/streamlit_app.py), [sql/13_app_access.sql](sql/13_app_access.sql) |
+| Resource monitors | Daily credit guards on both warehouses | [sql/01_setup.sql](sql/01_setup.sql), [sql/15_judge_access.sql](sql/15_judge_access.sql) |
+| Authentication policy | Judge user with MFA enrolment optional | [sql/15_judge_access.sql](sql/15_judge_access.sql) |
+| Snowflake Marketplace listing | Read-only payer-side context chart on the Results page | [sql/16_marketplace_context.sql](sql/16_marketplace_context.sql) |
+| METERING_HISTORY | Cost per 1,000 reports | [eval/export_metrics.ps1](eval/export_metrics.ps1) |
+| Snowflake CLI | Runbook, deploys and tests | [setup.ps1](setup.ps1) |
+
+## CoCo CLI in this project
+
+Everything is in [.cortex/](.cortex/); [docs/coco-evidence.md](docs/coco-evidence.md) shows a real call for each item. Each skill calls one fixed stored procedure.
+
+- **`followup-intake`**: ingests report `.txt` or `.pdf` files and runs `PROCESS_NEW_REPORTS()`, returning new loops with a verified quote and priority breakdown.
+- **`loop-auditor`**: recomputes one patient's loops from raw rows plus the payer share (`AUDIT_LOOP`) and reports MATCH or MISMATCH with citations.
+- **`guideline-rule-compiler`**: turns a guideline paragraph into a rule in the `EXTRA_RULES` Dynamic Table, stops for approval, then runs the pre-written tests and the eval.
+- **`demo-reset`**: runs `DEMO_RESET` plus payer cleanup and prints a PASS/FAIL checklist.
+- **PreToolUse hook** ([.cortex/hooks/pretooluse.ps1](.cortex/hooks/pretooluse.ps1)): blocks SSN- and Aadhaar-like numbers, dropping secure views or policies, and destructive DDL on curated tables ([tests/hook_tests.ps1](tests/hook_tests.ps1), 12/12).
+- **SessionEnd hook** ([.cortex/hooks/sessionend.ps1](.cortex/hooks/sessionend.ps1)): appends one line per session to [docs/coco-log.md](docs/coco-log.md).
+
+**Bundled skills used:** agent-studio, developing-with-streamlit-in-snowflake, snowflake-notebooks, cortex-code-guide, marketplace-search and manage-authentication-policy.
+
 ## Results
 
-Source: `eval/metrics.json`. The official Set C run comes from the `CTRL.DEMO_RESET(TRUE)` state.
+Source: [eval/metrics.json](eval/metrics.json). The official Set C run comes from the `CTRL.DEMO_RESET(TRUE)` state.
 
 | Set | What | Ours | Keyword baseline | AI-only baseline |
 | --- | --- | --- | --- | --- |
@@ -56,44 +99,26 @@ Source: `eval/metrics.json`. The official Set C run comes from the `CTRL.DEMO_RE
 A false green is a loop wrongly marked done. Set A cannot have false greens, because real reports have no follow-up events, so it counts false alarms instead.
 
 - **Quotes verified:** 99.9% of evidence quotes match the source word for word.
-- **Copilot answer accuracy: 15 of 15 (11 of 15 before fixing a clinic-filter mismatch).** Snowflake native Cortex Agent evaluation, judge claude-sonnet-4-6, golden set `FFU.EVAL.AGENT_GOLDEN` (`eval/agent/`); correct means an answer-correctness score of 0.5 or more, and 9 of 15 were fully correct. In the first run the copilot counted the EVAL clinic that holds Set A and Set B patients, which the worklist leaves out (208 vs 162 red loops). The semantic view now reads `SEC.LOOPS_COPILOT_V`, the worklist's scope, so chat and worklist give the same numbers. Right tool chosen: 13 of 15 (15 of 15 in the first run); 2 explain questions scored 0.5 on tool selection.
+- **Copilot answer accuracy: 15 of 15 (11 of 15 before fixing a clinic-filter mismatch).**
+  - Snowflake native Cortex Agent evaluation, judge claude-sonnet-4-6, golden set `FFU.EVAL.AGENT_GOLDEN` ([eval/agent/](eval/agent/)).
+  - Correct means an answer-correctness score of 0.5 or more; 9 of 15 were fully correct.
+  - In the first run the copilot counted the EVAL clinic that holds Set A and Set B patients, which the worklist leaves out (208 vs 162 red loops). The semantic view now reads `SEC.LOOPS_COPILOT_V`, the worklist's scope, so chat and worklist give the same numbers.
+  - Right tool chosen: 13 of 15 (15 of 15 in the first run); 2 explain questions scored 0.5 on tool selection.
 - **Cost:** about 1.3 AI credits per 1,000 reports (an upper bound from one build day).
 - **Impact on the synthetic hospital (SIMULATED, not a real-world result):** follow-up completion goes from 35.9% (hospital records only) to 50.9% (with the payer share) to 78.8% (with worklist recall).
+- **Red team:** 41 cases, 27 pass, 10 fixed, 4 known limits ([docs/RED_TEAM.md](docs/RED_TEAM.md)).
 
-## The problem
+## Try it as a judge
 
-- **A reported lawsuit (an allegation, not a ruling).** It alleges that an 8 mm lung nodule with a recommended follow-up CT in 6 to 12 months was never communicated, and that the patient was diagnosed with stage 4A lung cancer about three years later. ([Fox Carolina, Sept 2026](https://www.foxcarolina.com/2026/09/16/woman-was-not-told-about-lung-nodule-years-before-terminal-cancer-diagnosis-lawsuit-alleges/))
-- **How often follow-ups are missed.** Only 37% of recommended lung nodule follow-ups were completed before a tracking programme, and 74% after. ([Nodule Net, Respiratory Medicine 2022](https://www.sciencedirect.com/science/article/pii/S0954611122000026))
-- **The gap.** Hospital trackers only see their own records. When the follow-up happens at another hospital, they can't tell whether it was done. Payer claims can show this, so this project brings them in through **Secure Data Sharing**, with no data copied.
+1. Open the [deployed app](https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP) and sign in with the judge details from the submission form.
+2. **Worklist:** read the "How it works" strip, then click any row to open that patient.
+3. **Patient 360:** see the loop timeline, the report with the evidence quote highlighted, the payer claims and the letters. Patient P09902 is the decoy: a chest X-ray claim did not close its CT loop.
+4. **Copilot chat:** click "Who is first on the worklist and why?" and check that the answer cites the report line and rule.
+5. **Worklist, "View as analyst":** the same loops read with your judge role, with hashed patient ids and masked quotes.
+6. **Results:** the comparison charts, the copilot accuracy and the official Set C run.
+7. **ROI calculator:** every input is editable; defaults marked ASSUMPTION are not from a publication.
 
-## What it does
-
-1. Reads every scan report with AI and pulls out each "do this, by this date", with a **verbatim evidence quote** that is checked word for word against the source.
-2. Applies **deterministic SQL rules**: Fleischner 2017 lung nodules, chest X-ray "recommend CT", SVS 2018 AAA, and pathway routing. AI never decides a status.
-3. Checks hospital records **and the payer's shared claims**, and marks each loop:
-   - **RED**: overdue;
-   - **AMBER**: done elsewhere, outside report requested;
-   - **GREEN**: a follow-up report exists and AI_FILTER confirms it discusses the finding;
-   - **REROUTED**: moved to another pathway, with the reason shown.
-4. **The wrong test never closes a loop.** A chest X-ray claim cannot close a CT loop.
-5. Ranks the worklist with a transparent priority UDF, explains "why first" with citations, and drafts recall letters that a clinician must approve.
-
-## CoCo CLI skills and hooks
-
-Everything is in [.cortex/](.cortex/). Each skill calls one fixed stored procedure, so the skills, the Task and the app's buttons share one code path.
-
-- **`followup-intake`**: ingests report `.txt` or `.pdf` files and runs `PROCESS_NEW_REPORTS()`, returning new loops with a verified quote and priority breakdown.
-- **`loop-auditor`**: recomputes one patient's loops from raw rows plus the payer share (`AUDIT_LOOP`) and reports MATCH or MISMATCH with citations.
-- **`guideline-rule-compiler`**: turns a guideline paragraph into a rule in the `EXTRA_RULES` Dynamic Table, stops for approval, then runs the pre-written tests and the eval.
-- **`demo-reset`**: runs `DEMO_RESET` plus payer cleanup and prints a PASS/FAIL checklist.
-- **PreToolUse hook** (`.cortex/hooks/pretooluse.ps1`): blocks SSN- and Aadhaar-like numbers, dropping secure views or policies, and destructive DDL on curated tables (`tests/hook_tests.ps1`, 12/12).
-- **SessionEnd hook** (`.cortex/hooks/sessionend.ps1`): appends one line per session to [docs/coco-log.md](docs/coco-log.md).
-
-**Bundled skills used:** agent-studio, developing-with-streamlit-in-snowflake, snowflake-notebooks, cortex-code-guide, marketplace-search and manage-authentication-policy.
-
-## Snowflake features used
-
-Snowpark Python UDF, AI_COMPLETE (structured JSON), AI_FILTER, AI_PARSE_DOCUMENT, Dynamic Tables, Streams and Tasks, serverless Alerts, Cortex Search, semantic view, Cortex Agent (DATA_AGENT_RUN), native Cortex Agent evaluation (EXECUTE_AI_EVALUATION), Secure Data Sharing across accounts, row access and masking policies (payer side), role-aware secure views (hospital side), Streamlit in Snowflake (container runtime, restricted caller's rights), resource monitor, METERING_HISTORY, and the Snowflake CLI.
+The app runs with owner's rights, so the sidebar "Demo controls" change the shared demo state for everyone.
 
 ## Rebuild from scratch
 
@@ -107,9 +132,7 @@ Snowpark Python UDF, AI_COMPLETE (structured JSON), AI_FILTER, AI_PARSE_DOCUMENT
 
 Before a real run, edit the consumer locator in `sql/payer/01_payer.sql` (ALTER SHARE) and the provider org.account in `sql/05_mount_share.sql`. Create the judge user by hand (no password is kept in any file), and mount the Marketplace listing before `sql/16`. A full rebuild in a fresh account has not been tested yet.
 
-## Setup (runbook)
-
-You need two accounts in the same region: hospital (connection `hospital`) and payer (connection `payer`). Use Snowflake CLI 3.14 or later, PowerShell, and Python 3.12.
+**Runbook.** You need two accounts in the same region: hospital (connection `hospital`) and payer (connection `payer`). Use Snowflake CLI 3.14 or later, PowerShell, and Python 3.12.
 
 ```powershell
 snow sql -c hospital -f sql/01_setup.sql
@@ -150,18 +173,19 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 ## Known limits
 
 - **Synthetic data.** Sets B and C and the demo are synthetic, generated in Snowflake from a hidden answer key (Synthea was not used). The 37% baseline is built into the data design, so the simulated impact is not a real-world result.
-- **Set B review.** Set B labels were drafted by the build agent, then reviewed against the rule sheet by team member Rojina Mallick, who has clinical laboratory experience as a phlebotomist and lab technician (38 of 38 agreed, no changes; see eval/setB/setB_review.csv). She is not a radiologist, and the rule sheet still needs sign-off from a radiologist.
-- **The Set A rule fix came after seeing Set A.** The blind result is 17/24 (91.7%); the 21/24 (95.0%) figure includes one chest X-ray rule fix made after looking at the misses, so it is not a blind number. Open-i has no demographics, so routing on Set A uses default patient values.
+- **Set B review.** Set B labels were drafted by the build agent, then reviewed against the rule sheet by team member Rojina Mallick, who has clinical laboratory experience as a phlebotomist and lab technician (38 of 38 agreed, no changes; see [eval/setB/setB_review.csv](eval/setB/setB_review.csv)). She is not a radiologist, and the rule sheet still needs sign-off from a radiologist.
+- **The Set A rule fix came after seeing Set A.** The blind result is 17/24 (91.7%). The 21/24 (95.0%) figure includes one chest X-ray rule fix made after looking at the misses, so it is not a blind number. Open-i has no demographics, so routing on Set A uses default patient values.
 - **Three failure cases:**
   1. Two reports failed the extraction JSON schema, so no loop opened. They now appear in a review queue.
-  2. "Mass-like opacity" on X-ray versus "nodule" on CT: AI_FILTER didn't confirm the follow-up, so the loop stayed RED as "needs review". That's safe, but it creates extra work.
+  2. "Mass-like opacity" on X-ray versus "nodule" on CT: AI_FILTER did not confirm the follow-up, so the loop stayed RED as "needs review". That is safe, but it creates extra work.
   3. Priority saturates for long-overdue tier-1 loops; days overdue breaks the tie.
 - **Trial account.** The prototype runs on Snowflake trial accounts, with credit guards (resource monitors) on the warehouses, so it may stop when the trial or the daily credit quota runs out.
-- **The app runs with owner's rights**, so it shows full detail by default. The masked analyst view is shown with `sql/demo/analyst_view.sql`, or with the caller's-rights toggle for a user whose default role is FFU_ANALYST or FFU_JUDGE.
-- **The thyroid rule is not shipped.** It is added live by `guideline-rule-compiler`; its tests are in `tests/thyroid/`.
-- **No Data Metric Functions.** DMFs (NULL_COUNT, DUPLICATE_COUNT, FRESHNESS) were planned for the reports, loops and payer claims, but the hospital account returns "Data quality monitoring feature is not enabled for this account", and a consumer cannot attach DMFs to a shared table. The payer account does run them.
+- **The app runs with owner's rights**, so it shows full detail by default. The masked analyst view is shown with [sql/demo/analyst_view.sql](sql/demo/analyst_view.sql), or with the caller's-rights toggle for a user whose default role is FFU_ANALYST or FFU_JUDGE.
+- **The thyroid rule is not shipped.** It is added live by `guideline-rule-compiler`; its tests are in [tests/thyroid/](tests/thyroid/).
+- **No Data Metric Functions.** DMFs (NULL_COUNT, DUPLICATE_COUNT, FRESHNESS) were planned for the reports, loops and payer claims. The hospital account returns "Data quality monitoring feature is not enabled for this account", and a consumer cannot attach DMFs to a shared table. The payer account does run them.
 - **The cost figure is an upper bound** from one build day (`METERING_HISTORY` is hourly).
 - **No fresh-account rebuild test** has been run yet.
+- **Red-team known limits** are listed in [docs/RED_TEAM.md](docs/RED_TEAM.md).
 
 ## Roadmap
 
