@@ -72,6 +72,9 @@ RETURNS STRING LANGUAGE SQL AS
 $$
 DECLARE d STRING; ctx STRING;
 BEGIN
+  IF (UPPER(COALESCE(:KIND, '')) NOT IN ('PATIENT', 'REFERRAL')) THEN
+    RETURN 'Unknown letter kind ' || COALESCE(:KIND, '(none)') || ': use PATIENT or REFERRAL';
+  END IF;
   ctx := (SELECT APP.EXPLAIN_PRIORITY(:LOOP_ID));
   IF (ctx IS NULL) THEN RETURN 'Unknown loop ' || :LOOP_ID; END IF;
   d := (SELECT AI_COMPLETE('claude-sonnet-4-5',
@@ -88,9 +91,13 @@ CREATE OR REPLACE PROCEDURE APP.APPROVE_DRAFT(DRAFT_ID STRING, CLINICIAN STRING)
 RETURNS STRING LANGUAGE SQL AS
 $$
 BEGIN
-  UPDATE APP.APPROVALS SET status = 'APPROVED', approved_by = :CLINICIAN, approved_at = CURRENT_TIMESTAMP()
+  -- A blank or oversized name is not a clinician; the draft stays pending.
+  IF (LENGTH(TRIM(COALESCE(:CLINICIAN, ''))) < 2 OR LENGTH(:CLINICIAN) > 80) THEN
+    RETURN 'Not approved: enter the approving clinician''s name';
+  END IF;
+  UPDATE APP.APPROVALS SET status = 'APPROVED', approved_by = TRIM(:CLINICIAN), approved_at = CURRENT_TIMESTAMP()
   WHERE draft_id = :DRAFT_ID AND status = 'PENDING_CLINICIAN_APPROVAL';
-  RETURN IFF(SQLROWCOUNT = 1, 'Approved by ' || :CLINICIAN || ' (logged).', 'No pending draft ' || :DRAFT_ID);
+  RETURN IFF(SQLROWCOUNT = 1, 'Approved by ' || TRIM(:CLINICIAN) || ' (logged).', 'No pending draft ' || :DRAFT_ID);
 END;
 $$;
 

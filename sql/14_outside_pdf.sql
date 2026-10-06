@@ -15,7 +15,7 @@ CREATE OR REPLACE PROCEDURE CORE.INGEST_OUTSIDE_PDF(FILE_NAME STRING, REPORT_ID 
   REPORT_DATE DATE, MODALITY STRING, CPT STRING, FACILITY STRING)
 RETURNS STRING LANGUAGE SQL AS
 $$
-DECLARE txt STRING;
+DECLARE txt STRING; msg STRING; is_report BOOLEAN;
 BEGIN
   ALTER STAGE APP.OUTSIDE_DOCS REFRESH;
   INSERT INTO AI.PARSED_DOCS (file_name, report_id, parsed)
@@ -25,7 +25,12 @@ BEGIN
   IF (txt IS NULL OR LENGTH(txt) < 50) THEN
     RETURN 'Could not read ' || :FILE_NAME || ' - review by hand';
   END IF;
-  CALL CORE.INGEST_REPORT(:REPORT_ID, :PATIENT_ID, :REPORT_DATE, :MODALITY, :CPT, :FACILITY, :txt);
-  RETURN 'parsed ' || :FILE_NAME || ' (' || LENGTH(txt) || ' chars) and ingested as ' || :REPORT_ID;
+  -- A PDF that is not an imaging report (a menu, an invoice) must not land in the patient's record as a scan.
+  is_report := (SELECT AI_FILTER(PROMPT('Is the following document a radiology or medical imaging report? {0}', LEFT(:txt, 4000))));
+  IF (NOT is_report) THEN
+    RETURN 'Not ingested ' || :FILE_NAME || ': it does not look like a radiology report - review by hand';
+  END IF;
+  CALL CORE.INGEST_REPORT(:REPORT_ID, :PATIENT_ID, :REPORT_DATE, :MODALITY, :CPT, :FACILITY, :txt) INTO :msg;
+  RETURN 'parsed ' || :FILE_NAME || ' (' || LENGTH(txt) || ' chars): ' || :msg;
 END;
 $$;

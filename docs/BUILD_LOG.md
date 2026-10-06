@@ -203,3 +203,10 @@
 - **Clinic filter:** new secure view SEC.LOOPS_COPILOT_V (SEC.LOOPS_V without clinic EVAL, the worklist's filter); APP.LOOPS_SV now reads it (sql/12_copilot.sql; judge grant in sql/15). Semantic view and agent grants checked; the agent did not need recreating. Chat now says 162 red loops, as the worklist does.
 - **Native agent eval rerun** (ffu_agent_eval_20261006_clinicfix, same golden set and metrics): **15 of 15 correct** (11 of 15 before), 9 fully correct, average 0.868; every count matches the worklist. Right tool 13 of 15 (was 15): two explain questions scored 0.5 on tool selection, not touched by the fix. Both runs kept in EVAL.AGENT_EVAL_RESULTS; the 2 drafts the eval created were deleted.
 - **App polish (display only):** How it works strip on the Worklist; Loop status mix coloured by status; blanks instead of None (worklist size, letter approver, older eval runs); eval run rates as percentages; copilot scores to 2 decimals. Headless scan of all 6 pages: no None, raw decimals or long dashes. Smoke test 20/20.
+
+## 2026-10-06 - Red team
+
+- 41 cases (docs/RED_TEAM.md): 27 PASS, 10 FIXED, 4 KNOWN LIMIT. Copilot held against prompt injection, SSN requests, self-approval and SQL in questions; both judge and analyst roles were denied every write and unmasked read (24 checks).
+- Fixed: INGEST_REPORT refuses a missing id, an unknown patient, empty text and reports duplicates as skipped (bad files no longer vanish silently); INGEST_OUTSIDE_PDF refuses non-radiology PDFs with AI_FILTER; DRAFT_LETTER accepts only PATIENT or REFERRAL; APPROVE_DRAFT needs a real name; ASK_AGENT refuses over-long input instead of silently cutting it; the chat ignores blank input; the role test now really switches role.
+- Known limits: no size plausibility check (0 mm, 999 mm); the hook blocks literal DROP text in a copilot question; payer demo claims EDEMO001/002 are only removed by the demo-reset skill's payer step.
+- Tests: tests/red_team_guards.sql (10), tests/red_team_roles.ps1 (24), tests/red_team_intake.sql. All test data deleted; DEMO_RESET(TRUE) run at the end. Smoke test 20/20.

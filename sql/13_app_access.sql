@@ -8,9 +8,14 @@ RETURNS VARIANT LANGUAGE SQL EXECUTE AS CALLER AS
 $$
 DECLARE body STRING; q STRING; dd STRING DEFAULT CHR(36) || CHR(36); rs RESULTSET; out VARIANT;
 BEGIN
+  -- Over-long input used to be cut silently at 2,000 characters (so a question at the end was lost); refuse it instead.
+  IF (LENGTH(:QUESTION) > 2000) THEN
+    RETURN OBJECT_CONSTRUCT('answer', 'Your message is ' || LENGTH(:QUESTION) || ' characters long. Please ask a shorter question (2,000 characters at most).',
+                            'tools', ARRAY_CONSTRUCT());
+  END IF;
   -- Build the body with TO_JSON (safe escaping) and strip the dollar-quote marker so input can't break the literal.
   body := TO_JSON(OBJECT_CONSTRUCT('messages', ARRAY_CONSTRUCT(OBJECT_CONSTRUCT('role', 'user', 'content',
-            ARRAY_CONSTRUCT(OBJECT_CONSTRUCT('type', 'text', 'text', LEFT(:QUESTION, 2000)))))));
+            ARRAY_CONSTRUCT(OBJECT_CONSTRUCT('type', 'text', 'text', :QUESTION))))));
   body := REPLACE(body, :dd, '');
   q := 'SELECT TRY_PARSE_JSON(SNOWFLAKE.CORTEX.DATA_AGENT_RUN(''FFU.APP.FFU_AGENT'', ' || :dd || body || :dd || ')) AS j';
   rs := (EXECUTE IMMEDIATE :q);

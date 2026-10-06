@@ -1,4 +1,4 @@
-# Forgotten Follow-ups
+ # Forgotten Follow-ups
 
 **When a scan report says "repeat this scan in 6 months" or "refer to a surgeon", this copilot makes sure it actually happens, and proves every step with the exact source line.**
 
@@ -143,6 +143,7 @@ snow sql -c hospital -q "CALL FFU.CTRL.DEMO_RESET(TRUE)"
 - `powershell -File tests/check_answer_key_isolation.ps1`
 - `snow sql -c hospital -f tests/priority_scale.sql`
 - `.venv\Scripts\python.exe tests\app_smoke_test.py` (20 headless AppTest checks)
+- Red team ([docs/RED_TEAM.md](docs/RED_TEAM.md), 41 cases): `snow sql -c hospital -f tests/red_team_guards.sql`, `powershell -File tests/red_team_roles.ps1`, `snow sql -c hospital -f tests/red_team_intake.sql`
 
 **Eval:** run `eval/setB/*.sql`, `eval/setA/*.sql`, `eval/02_baselines.sql` and `eval/03_simulated_impact.sql`, then `eval/export_metrics.ps1`.
 

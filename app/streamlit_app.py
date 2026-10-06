@@ -295,7 +295,7 @@ elif page == "Copilot chat":
     for col, ex in zip(st.columns(len(examples)), examples):
         if col.button(ex, width="stretch"):
             pick = ex
-    prompt = st.chat_input("Ask about follow-ups") or pick
+    prompt = (st.chat_input("Ask about follow-ups") or pick or "").strip()  # blank or spaces-only input is ignored
     if prompt:
         st.session_state.chat.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
