@@ -102,9 +102,17 @@ $$
   FROM RAW.REPORTS WHERE report_id = P_REPORT_ID
 $$;
 
--- Semantic view over the role-aware secure view, for Cortex Analyst.
+-- Copilot scope: the same loops as the worklist and alerts (eval sets in clinic EVAL are excluded), so chat counts
+-- match the app. Still role-aware, because it reads the secure view.
+CREATE OR REPLACE SECURE VIEW SEC.LOOPS_COPILOT_V
+  COMMENT = 'SEC.LOOPS_V without the EVAL clinic (Set A and Set B patients), the scope used by the worklist'
+AS SELECT * FROM SEC.LOOPS_V WHERE clinic_id <> 'EVAL';
+GRANT SELECT ON VIEW SEC.LOOPS_COPILOT_V TO ROLE FFU_COORDINATOR;
+GRANT SELECT ON VIEW SEC.LOOPS_COPILOT_V TO ROLE FFU_ANALYST;
+
+-- Semantic view over the copilot scope, for Cortex Analyst.
 CREATE OR REPLACE SEMANTIC VIEW APP.LOOPS_SV
-  TABLES (loops AS SEC.LOOPS_V PRIMARY KEY (loop_id)
+  TABLES (loops AS SEC.LOOPS_COPILOT_V PRIMARY KEY (loop_id)
           COMMENT = 'One row per follow-up loop: a recommended next step from a scan report and whether it happened')
   FACTS (loops.avg_mm AS avg_mm COMMENT = 'Lung nodule size in mm (average of long and short axis)',
          loops.aorta_cm AS aorta_cm COMMENT = 'Aortic aneurysm diameter in cm',

@@ -358,34 +358,19 @@
     "baseline_notes":  "KEYWORD: recommend/follow-up opens a loop, any later event closes it. AI_ONLY: claude-haiku-4-5 picks the status from report text plus events (Set B all, Set C 96-report sample). False-green rate = wrong greens / loops that should not be green.",
     "copilot_agent_eval":  {
                                "method":  "Snowflake native Cortex Agent evaluation (EXECUTE_AI_EVALUATION) on FFU.APP.FFU_AGENT, golden set FFU.EVAL.AGENT_GOLDEN (15 questions: 4 worklist, 5 loop counts, 4 rules, 2 letters), metrics answer_correctness and tool_selection_accuracy v3_0; correct = answer_correctness \u003e= 0.5",
-                               "run_name":  "ffu_agent_eval_20261005",
+                               "run_name":  "ffu_agent_eval_20261006_clinicfix",
                                "agent_version":  "VERSION$1",
                                "judge_model":  "claude-sonnet-4-6",
                                "questions":  15,
-                               "correct":  11,
-                               "fully_correct":  8,
-                               "avg_answer_correctness":  0.755,
-                               "right_tool":  15,
+                               "correct":  15,
+                               "fully_correct":  9,
+                               "avg_answer_correctness":  0.868,
+                               "right_tool":  13,
                                "not_fully_correct":  [
                                                          {
                                                              "q_id":  "G05",
                                                              "question":  "How many loops are red (overdue) right now?",
-                                                             "answer_correctness":  0.33
-                                                         },
-                                                         {
-                                                             "q_id":  "G07",
-                                                             "question":  "How many red abdominal aortic aneurysm loops are there?",
-                                                             "answer_correctness":  0.33
-                                                         },
-                                                         {
-                                                             "q_id":  "G08",
-                                                             "question":  "How many red loops are tier 1?",
-                                                             "answer_correctness":  0.33
-                                                         },
-                                                         {
-                                                             "q_id":  "G09",
-                                                             "question":  "How many red loops have a patient who was never notified?",
-                                                             "answer_correctness":  0.33
+                                                             "answer_correctness":  0.67
                                                          },
                                                          {
                                                              "q_id":  "G06",
@@ -393,17 +378,36 @@
                                                              "answer_correctness":  0.67
                                                          },
                                                          {
-                                                             "q_id":  "G10",
-                                                             "question":  "Does a chest X-ray close a CT follow-up loop for a lung nodule?",
+                                                             "q_id":  "G07",
+                                                             "question":  "How many red abdominal aortic aneurysm loops are there?",
                                                              "answer_correctness":  0.67
                                                          },
                                                          {
-                                                             "q_id":  "G15",
-                                                             "question":  "Draft a specialist referral for loop L-R00334-0",
+                                                             "q_id":  "G08",
+                                                             "question":  "How many red loops are tier 1?",
+                                                             "answer_correctness":  0.67
+                                                         },
+                                                         {
+                                                             "q_id":  "G09",
+                                                             "question":  "How many red loops have a patient who was never notified?",
+                                                             "answer_correctness":  0.67
+                                                         },
+                                                         {
+                                                             "q_id":  "G10",
+                                                             "question":  "Does a chest X-ray close a CT follow-up loop for a lung nodule?",
                                                              "answer_correctness":  0.67
                                                          }
                                                      ],
-                               "note":  "All 4 low scores (0.33) are loop-count questions: the agent counts loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (for example 208 vs 162 RED). The golden answers accept either number, but the judge still marked these down."
+                               "summary":  "Copilot answer accuracy: 15 of 15 (11 of 15 before fixing a clinic-filter mismatch)",
+                               "before_clinic_filter_fix":  {
+                                                                "run_name":  "ffu_agent_eval_20261005",
+                                                                "questions":  15,
+                                                                "correct":  11,
+                                                                "fully_correct":  8,
+                                                                "avg_answer_correctness":  0.755,
+                                                                "right_tool":  15
+                                                            },
+                               "note":  "First run: the agent counted loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (208 vs 162 RED), so the 4 count questions scored 0.33. Fix: the semantic view now reads SEC.LOOPS_COPILOT_V (SEC.LOOPS_V without clinic EVAL), the same scope as the worklist. In the second run every count matches the worklist; right tool fell from 15 to 13 because 2 explain questions scored 0.5 on tool selection, which the fix did not touch (likely run-to-run variation, not verified)."
                            },
     "data_quality":  {
                          "status":  "not available",
@@ -411,10 +415,10 @@
                      },
     "cost":  {
                  "window":  "whole build day so far (generation + extraction + AI_FILTER + baselines + agent tests), METERING_HISTORY",
-                 "ai_function_credits":  "2.534",
-                 "warehouse_credits":  "4.306",
-                 "agent_credits":  "3.226",
-                 "app_container_credits":  "3.753",
+                 "ai_function_credits":  "2.542",
+                 "warehouse_credits":  "4.575",
+                 "agent_credits":  "4.179",
+                 "app_container_credits":  "4.855",
                  "ai_reports_processed":  1890,
                  "ai_credits_per_1000_reports_upper_bound":  1.34,
                  "note":  "Upper bound: includes report generation, baselines and tests, not only production extraction."

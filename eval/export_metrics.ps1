@@ -18,6 +18,7 @@ $setaNow = Q "SELECT * FROM FFU.EVAL.SETA_SUMMARY ORDER BY method"
 $setaF = (Q "SELECT COUNT_IF(exp_loop AND sys_loop) AS tp, COUNT_IF(exp_loop AND sys_loop AND sys_type = exp_type) AS type_ok, COUNT_IF(exp_loop AND sys_loop AND sys_hedged = exp_hedged) AS hedged_ok, COUNT_IF(extraction_error) AS extraction_errors FROM FFU.EVAL.SETA_RESULTS")[0]
 $procReports = [int]$c.EXTRACTIONS + [int]$c.GENERATED
 $ae = (Q "SELECT ANY_VALUE(run_name) AS run_name, ANY_VALUE(judge_model) AS judge, ANY_VALUE(agent_version) AS ver, COUNT(*) AS n, COUNT_IF(correct) AS correct, COUNT_IF(answer_correctness = 1) AS fully_correct, ROUND(AVG(answer_correctness), 3) AS avg_ac, COUNT_IF(tool_selection_accuracy = 1) AS right_tool FROM FFU.EVAL.AGENT_EVAL_RESULTS WHERE run_name = (SELECT MAX_BY(run_name, stored_at) FROM FFU.EVAL.AGENT_EVAL_RESULTS)")[0]
+$aePrev = (Q "SELECT COUNT(*) AS n, COUNT_IF(correct) AS correct, COUNT_IF(answer_correctness = 1) AS fully_correct, ROUND(AVG(answer_correctness), 3) AS avg_ac, COUNT_IF(tool_selection_accuracy = 1) AS right_tool FROM FFU.EVAL.AGENT_EVAL_RESULTS WHERE run_name = 'ffu_agent_eval_20261005'")[0]
 $aeMiss = Q "SELECT q_id, input_query, answer_correctness FROM FFU.EVAL.AGENT_EVAL_RESULTS WHERE run_name = '$($ae.RUN_NAME)' AND answer_correctness < 1 ORDER BY answer_correctness, q_id"
 
 $out = [ordered]@{
@@ -47,7 +48,9 @@ $out = [ordered]@{
     run_name = $ae.RUN_NAME; agent_version = $ae.VER; judge_model = $ae.JUDGE
     questions = $ae.N; correct = $ae.CORRECT; fully_correct = $ae.FULLY_CORRECT; avg_answer_correctness = [double]$ae.AVG_AC; right_tool = $ae.RIGHT_TOOL
     not_fully_correct = @($aeMiss | % { [ordered]@{ q_id = $_.Q_ID; question = $_.INPUT_QUERY; answer_correctness = [double]$_.ANSWER_CORRECTNESS } })
-    note = 'All 4 low scores (0.33) are loop-count questions: the agent counts loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (for example 208 vs 162 RED). The golden answers accept either number, but the judge still marked these down.' }
+    summary = "Copilot answer accuracy: $($ae.CORRECT) of $($ae.N) ($($aePrev.CORRECT) of $($aePrev.N) before fixing a clinic-filter mismatch)"
+    before_clinic_filter_fix = [ordered]@{ run_name = 'ffu_agent_eval_20261005'; questions = $aePrev.N; correct = $aePrev.CORRECT; fully_correct = $aePrev.FULLY_CORRECT; avg_answer_correctness = [double]$aePrev.AVG_AC; right_tool = $aePrev.RIGHT_TOOL }
+    note = 'First run: the agent counted loops in all clinics, including the EVAL clinic that holds Set A and Set B patients, while the worklist excludes it (208 vs 162 RED), so the 4 count questions scored 0.33. Fix: the semantic view now reads SEC.LOOPS_COPILOT_V (SEC.LOOPS_V without clinic EVAL), the same scope as the worklist. In the second run every count matches the worklist; right tool fell from 15 to 13 because 2 explain questions scored 0.5 on tool selection, which the fix did not touch (likely run-to-run variation, not verified).' }
   data_quality = [ordered]@{
     status = 'not available'
     note = 'Data Metric Functions could not be attached: the hospital account returns "Unsupported feature DATA METRIC FUNCTION" and "Data quality monitoring feature is not enabled for this account" (error 510130). A consumer also cannot attach DMFs to the shared payer table. The payer account (Enterprise) does run DMFs.' }

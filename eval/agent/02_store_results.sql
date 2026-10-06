@@ -1,6 +1,7 @@
 -- Copies the per-question scores of a native agent evaluation run (EXECUTE_AI_EVALUATION, see eval/agent/cortex_project)
 -- into EVAL.AGENT_EVAL_RESULTS, which the app reads. A question counts as correct when answer_correctness >= 0.5.
--- Run name below is the official run from 2026-10-05; change it to store a newer run.
+-- Set the run name below; each run is kept (only rows for that run are replaced). Runs: ffu_agent_eval_20261005
+-- (before the clinic-filter fix), ffu_agent_eval_20261006_clinicfix (after).
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE COMPUTE_WH;
 
@@ -9,7 +10,7 @@ CREATE TABLE IF NOT EXISTS FFU.EVAL.AGENT_EVAL_RESULTS (
   answer_correctness FLOAT, tool_selection_accuracy FLOAT, correct BOOLEAN, agent_answer STRING,
   judge_model STRING, agent_version STRING, stored_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP());
 
-SET run = 'ffu_agent_eval_20261005';
+SET run = 'ffu_agent_eval_20261006_clinicfix';
 DELETE FROM FFU.EVAL.AGENT_EVAL_RESULTS WHERE run_name = $run;
 
 INSERT INTO FFU.EVAL.AGENT_EVAL_RESULTS (run_name, q_id, category, input_query, expected_tool, answer_correctness,

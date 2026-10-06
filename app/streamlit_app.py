@@ -114,9 +114,19 @@ with st.sidebar.expander("Demo controls"):
 # ---------- Worklist ----------
 if page == "Worklist":
     st.header("Ranked worklist")
+    # How it works: four steps, display only.
+    steps = [("1", "AI reads the report", "Pulls out each follow-up with the exact source line"),
+             ("2", "The rule decides", "Fleischner, chest X-ray CT advice and AAA rules set due date and tier"),
+             ("3", "Records are checked", "Hospital reports plus the payer's shared claims"),
+             ("4", "Red, amber or green", "Each status shown with the source line behind it")]
+    for col, (n, title, text) in zip(st.columns(4), steps):
+        col.markdown(f"<div style='border-left:4px solid #0074D6;padding:4px 10px;background:#F4F8FC;border-radius:4px'>"
+                     f"<b>{n}. {title}</b><br><span style='font-size:0.85em;color:#455A64'>{text}</span></div>",
+                     unsafe_allow_html=True)
+    st.write("")
     st.caption("Red (overdue) and amber (done elsewhere, outside report needed). Most dangerous tier first, then priority, then days overdue. "
                "Click a row to open the patient.")
-    wl = q("""SELECT rank, patient_id, finding_type, COALESCE(avg_mm || ' mm', aorta_cm || ' cm') AS size, tier, status,
+    wl = q("""SELECT rank, patient_id, finding_type, COALESCE(avg_mm || ' mm', aorta_cm || ' cm', '') AS size, tier, status,
                      days_overdue::INT AS days_overdue, ROUND(priority:score::FLOAT)::INT AS priority, clinician_acked, patient_notified, status_reason
               FROM FFU.CORE.WORKLIST ORDER BY rank LIMIT 300""")
     k1, k2, k3, k4 = st.columns(4)
@@ -261,7 +271,9 @@ elif page == "Patient 360":
         st.dataframe(q("""SELECT event_id, service_date, cpt, cpt_desc, facility FROM PAYER_SHARE.SHARED.FOLLOWUP_EVENTS_FROM_CLAIMS
                           WHERE patient_id = ? ORDER BY service_date""", [pid]), hide_index=True, width="stretch")
         st.subheader("Letters and approvals")
-        st.dataframe(q("""SELECT a.kind, a.status, a.created_at, a.approved_by, a.approved_at, a.loop_id FROM FFU.APP.APPROVALS a
+        st.dataframe(q("""SELECT a.kind, a.status, a.created_at, COALESCE(a.approved_by, '') AS approved_by,
+                                 COALESCE(TO_VARCHAR(a.approved_at, 'YYYY-MM-DD HH24:MI'), '') AS approved_at, a.loop_id
+                          FROM FFU.APP.APPROVALS a
                           JOIN FFU.CORE.LOOP_STATUS s ON s.loop_id = a.loop_id WHERE s.patient_id = ? ORDER BY a.created_at DESC""", [pid]),
                      hide_index=True, width="stretch")
 
@@ -364,17 +376,33 @@ elif page == "Results":
               FROM FFU.EVAL.AGENT_EVAL_RESULTS
               WHERE run_name = (SELECT MAX_BY(run_name, stored_at) FROM FFU.EVAL.AGENT_EVAL_RESULTS) ORDER BY q_id""")
     if not ae.empty:
-        st.subheader(f"Copilot answer accuracy: {int(ae['correct'].sum())} of {len(ae)}")
+        # First run (before the copilot used the worklist's clinic filter), kept for comparison.
+        first = q("""SELECT COUNT_IF(correct) AS c, COUNT(*) AS n FROM FFU.EVAL.AGENT_EVAL_RESULTS
+                     WHERE run_name = 'ffu_agent_eval_20261005'""")
+        before = (f" ({int(first['c'].iloc[0])} of {int(first['n'].iloc[0])} before fixing a clinic-filter mismatch)"
+                  if ae["run_name"].iloc[0] != "ffu_agent_eval_20261005" and int(first["n"].iloc[0]) else "")
+        st.subheader(f"Copilot answer accuracy: {int(ae['correct'].sum())} of {len(ae)}{before}")
         st.caption(f"Native Cortex Agent evaluation, judge {ae['judge_model'].iloc[0]}; correct = answer_correctness of 0.5 or more. "
                    f"Right tool chosen: {int((ae['tool_selection_accuracy'] == 1).sum())} of {len(ae)}. Run {ae['run_name'].iloc[0]}.")
         with st.expander("Per-question scores"):
             st.dataframe(ae.drop(columns=["run_name", "judge_model"]).rename(columns={
                 "input_query": "Question", "expected_tool": "Expected tool", "answer_correctness": "Answer correctness",
-                "tool_selection_accuracy": "Tool selection", "correct": "Correct"}), hide_index=True, width="stretch")
+                "tool_selection_accuracy": "Tool selection", "correct": "Correct"}), hide_index=True, width="stretch",
+                column_config={"Answer correctness": st.column_config.NumberColumn(format="%.2f"),
+                               "Tool selection": st.column_config.NumberColumn(format="%.2f")})
 
     runs = q("""SELECT run_at, label, official, state_note, n, correct, accuracy, false_green, false_green_upper95,
                        missed_loops, quote_verified_rate FROM FFU.EVAL.RUNS ORDER BY run_at DESC LIMIT 50""")
     off = runs[runs["official"] == True]  # noqa: E712
+
+    def runs_view(df):
+        # Display only: percentages instead of raw fractions, blanks instead of "None" for older runs.
+        pct = lambda v: "" if pd.isna(v) else f"{v:.1%}"
+        return df.assign(official=df["official"].map(lambda v: "" if pd.isna(v) else ("Yes" if v else "No")),
+                         state_note=df["state_note"].fillna(""), accuracy=df["accuracy"].map(pct),
+                         false_green_upper95=df["false_green_upper95"].map(pct),
+                         quote_verified_rate=df["quote_verified_rate"].map(pct))
+
     st.subheader("Latest official Set C run")
     if not off.empty:
         r = off.iloc[0]
@@ -384,11 +412,17 @@ elif page == "Results":
             "#1E7B34" if int(r["false_green"]) == 0 else "#B3261E")
         kpi(c3, "Quotes verified", f"{r['quote_verified_rate'] * 100:.1f}%", "Word for word against the source")
         kpi(c4, "Missed loops", int(r["missed_loops"]), "Shown in the extraction review queue")
-        st.dataframe(off, hide_index=True, width="stretch")
+        st.dataframe(runs_view(off), hide_index=True, width="stretch")
     with st.expander("All eval runs (including unofficial)"):
-        st.dataframe(runs, hide_index=True, width="stretch")
+        st.dataframe(runs_view(runs), hide_index=True, width="stretch")
     st.subheader("Loop status mix")
-    st.bar_chart(q("SELECT status, COUNT(*) AS loops FROM FFU.CORE.LOOP_STATUS GROUP BY 1 ORDER BY 1"), x="status", y="loops")
+    mix = q("SELECT status, COUNT(*) AS loops FROM FFU.CORE.LOOP_STATUS GROUP BY 1 ORDER BY 1")
+    st.altair_chart(alt.Chart(mix).mark_bar().encode(
+        x=alt.X("status:N", title=None, sort=["RED", "AMBER", "GREEN", "OPEN", "REROUTED"]), y=alt.Y("loops:Q", title="Loops"),
+        color=alt.Color("status:N", legend=None, scale=alt.Scale(
+            domain=["RED", "AMBER", "GREEN", "OPEN", "REROUTED", "CANCELLED"],
+            range=["#D32F2F", "#F59E0B", "#2E7D32", "#9E9E9E", "#BDBDBD", "#757575"])),
+        tooltip=["status", "loops"]).properties(height=260))
 
     st.subheader("Payer-side context: imaging volume (Marketplace)")
     st.caption("From the Snowflake Marketplace listing 'Synthetic Healthcare Data - Clinical and Claims' (synthetic population). "
