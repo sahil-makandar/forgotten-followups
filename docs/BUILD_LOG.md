@@ -214,3 +214,10 @@
 ## 2026-10-06 - Under the hood page
 
 - New read-only app page: object counts live from INFORMATION_SCHEMA and SHOW (37 tables, 4 Dynamic Tables with last refresh, 1 stream, 1 task, 1 alert, 18 procedures, 3 UDFs, 1 Cortex Search service, 1 semantic view, 1 agent, 4 secure views, 1 authentication policy), AI cache usage (AI_COMPLETE 1009, AI_FILTER 144, AI_PARSE_DOCUMENT 0 after the demo reset) and the cost per 1,000 reports from a deployed copy of eval/metrics.json (app/metrics.json, written by export_metrics.ps1). Failures show 'not visible to this role'; row access policies show 'not available in this account' (Standard edition). Graphviz flow diagram. Smoke test 21/21.
+
+## 2026-10-06 - Pre-recording rehearsal
+
+- Payer demo claims: the demo-reset skill's payer step deleted the 2 EDEMO rows (79 to 77 rows), nothing else.
+- Plausibility QA flag in CORE.LOOPS (sql/07_rules.sql): 'Size looks implausible, check the report' for a lung nodule over 60 mm or an aorta over 15 cm. A QA note only: 672 loops before and after, 0 tier/due/action/pathway changes, 0 existing flags changed (the real 6.8 cm Set A mass is a chest X-ray finding, not a nodule). Added to tests/red_team_intake.sql (999 mm and 20 cm flagged, normal sizes not). Red team now 27 PASS, 12 FIXED, 2 KNOWN LIMIT.
+- Full rehearsal in video order: reset 7/7 PASS; intake P09901 tier 1 OPEN, not told; clock 2027-02-04 RED with alerts for both; payer claims then audit: P09901 AMBER (first audit MISMATCH until one Dynamic Table refresh, as the skill handles), P09902 RED with the chest X-ray named as the wrong test; outside PDF: P09901 GREEN and the next check-up opened; thyroid compiler 7/7 PASS, eval 690/700 before and after, 0 false greens.
+- Reset for recording on both accounts: DEMO_STATE 7/7 PASS, sql/rules empty, 0 letters, P09901 no loops, P09902 only its seeded decoy loop. Deck PDF linked from the README.

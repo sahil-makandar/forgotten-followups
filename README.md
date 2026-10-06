@@ -6,7 +6,7 @@
 - **What it does:** AI reads each report and quotes the recommendation word for word. SQL rules decide the due date and tier. Hospital records and the payer's claims (through Secure Data Sharing) decide if it was done. AI extracts; rules decide.
 - **Result:** 99.1% loop-status accuracy with 0 false greens on 700 synthetic reports, 36 of 36 on trap reports, and 21 of 24 real X-ray follow-ups found (17 of 24 blind).
 
-**Links:** [Deployed app](https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP) | Demo video: VIDEO_LINK_HERE | [Deck outline](docs/DECK_OUTLINE.md) | [Demo script](docs/DEMO_SCRIPT.md) | [Rule sheet](docs/RULE_SHEET.md) | [Plan](docs/PLAN_SPEC.md) | [Build log](docs/BUILD_LOG.md) | [CoCo evidence](docs/coco-evidence.md) | [Red team](docs/RED_TEAM.md)
+**Links:** [Deployed app](https://app.snowflake.com/JVHFISR/pb73401/#/streamlit-apps/FFU.APP.FFU_APP) | Demo video: VIDEO_LINK_HERE | [Deck (PDF)](docs/deck.pdf) | [Demo script](docs/DEMO_SCRIPT.md) | [Rule sheet](docs/RULE_SHEET.md) | [Plan](docs/PLAN_SPEC.md) | [Build log](docs/BUILD_LOG.md) | [CoCo evidence](docs/coco-evidence.md) | [Red team](docs/RED_TEAM.md)
 
 Built on Snowflake for the Snowflake CoCo CLI Hackathon 2026 (GCC Edition), Track 4: Patient and Member 360 and Clinical or Regulatory Document Copilot. All data is synthetic except Set A (real, de-identified, never committed). This is not a diagnostic tool, and it never overrides a radiologist. Judge access details are in the submission form; no credentials are kept in this repo.
 
@@ -106,7 +106,7 @@ A false green is a loop wrongly marked done. Set A cannot have false greens, bec
   - Right tool chosen: 13 of 15 (15 of 15 in the first run); 2 explain questions scored 0.5 on tool selection.
 - **Cost:** about 1.3 AI credits per 1,000 reports (an upper bound from one build day).
 - **Impact on the synthetic hospital (SIMULATED, not a real-world result):** follow-up completion goes from 35.9% (hospital records only) to 50.9% (with the payer share) to 78.8% (with worklist recall).
-- **Red team:** 41 cases, 27 pass, 10 fixed, 4 known limits ([docs/RED_TEAM.md](docs/RED_TEAM.md)).
+- **Red team:** 41 cases, 27 pass, 12 fixed, 2 known limits ([docs/RED_TEAM.md](docs/RED_TEAM.md)).
 
 ## Try it as a judge
 

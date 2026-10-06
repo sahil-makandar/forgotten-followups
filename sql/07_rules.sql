@@ -163,7 +163,11 @@ SELECT
   COALESCE(stated_max_months, stated_min_months, g_max) AS due_max_months,
   DATEADD(day, ROUND(30.4 * COALESCE(stated_min_months, stated_max_months, g_min)), report_date) AS due_start,
   DATEADD(day, ROUND(30.4 * COALESCE(stated_max_months, stated_min_months, g_max)), report_date) AS due_end,
-  CASE WHEN rec_action <> guideline_action AND NOT (rec_action IN ('PET_CT','BIOPSY') AND guideline_action = 'CT_CHEST')
+  -- QA notes only (never change tier, due date or status). Implausible sizes first: a lung nodule over 60 mm or an
+  -- aorta over 15 cm is far more likely an extraction or dictation error than a real measurement.
+  CASE WHEN (finding_type = 'LUNG_NODULE' AND GREATEST(COALESCE(long_mm, 0), COALESCE(avg_mm, 0)) > 60) OR aorta_cm > 15
+         THEN 'Size looks implausible, check the report'
+       WHEN rec_action <> guideline_action AND NOT (rec_action IN ('PET_CT','BIOPSY') AND guideline_action = 'CT_CHEST')
          THEN 'Radiologist action ' || rec_action || ' differs from guideline ' || guideline_action
        WHEN stated_max_months IS NOT NULL AND (stated_max_months > g_max OR stated_max_months < g_min)
          THEN 'Stated interval ' || stated_max_months || ' months is outside guideline ' || g_min || '-' || g_max

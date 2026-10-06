@@ -33,8 +33,17 @@ CALL CORE.INGEST_REPORT('RRT06', 'P0RT01', '2026-09-01', 'CT_CHEST', '71250', 'H
 -- I8 patient that does not exist
 CALL CORE.INGEST_REPORT('RRT08', 'P77777', '2026-09-01', 'CT_CHEST', '71250', 'HOSPITAL',
   'FINDINGS: 9 x 9 mm solid nodule. IMPRESSION: 9 mm nodule. Follow-up CT chest in 3 months.');
+-- I10 implausible aorta (20 cm)
+CALL CORE.INGEST_REPORT('RRT10', 'P0RT01', '2026-09-01', 'CT_ABDOMEN', '74177', 'HOSPITAL',
+  'FINDINGS: Infrarenal abdominal aortic aneurysm measuring 20.0 cm in maximum diameter. IMPRESSION: 20 cm abdominal aortic aneurysm. Vascular surgery referral recommended.');
 
 CALL CORE.PROCESS_NEW_REPORTS();
+
+-- Plausibility QA flag (a note only; tier and status are unchanged).
+SELECT IFF(COUNT_IF(report_id = 'RRT05' AND qa_flag = 'Size looks implausible, check the report') = 1, 'PASS', 'FAIL') AS nodule_999mm_flagged,
+       IFF(COUNT_IF(report_id = 'RRT10' AND qa_flag = 'Size looks implausible, check the report') = 1, 'PASS', 'FAIL') AS aorta_20cm_flagged,
+       IFF(COUNT_IF(report_id IN ('RRT02', 'RRT06') AND qa_flag = 'Size looks implausible, check the report') = 0, 'PASS', 'FAIL') AS normal_sizes_not_flagged
+FROM CORE.LOOPS WHERE patient_id = 'P0RT01';
 
 -- Results per case (one row per landed report).
 SELECT r.report_id,

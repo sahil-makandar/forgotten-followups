@@ -2,7 +2,7 @@
 
 Run on 2026-10-06 against the deployed app, the pipeline and the agent (hospital account), from the DEMO_RESET state. Rules, eval data and demo patients were not changed. All test data was deleted afterwards, and `CTRL.DEMO_RESET(TRUE)` was run at the end.
 
-**Totals: 41 cases. 27 PASS, 10 FIXED, 4 KNOWN LIMIT.** The 12 role cases were each run for both FFU_JUDGE and FFU_ANALYST (24 checks).
+**Totals: 41 cases. 27 PASS, 12 FIXED, 2 KNOWN LIMIT.** The 12 role cases were each run for both FFU_JUDGE and FFU_ANALYST (24 checks).
 
 Regression tests added: `tests/red_team_guards.sql` (10 checks, no AI calls), `tests/red_team_roles.ps1` (24 checks), `tests/red_team_intake.sql` (the intake cases end to end, about 10 AI calls, cleans up after itself).
 
@@ -39,8 +39,8 @@ Test patient P0RT01 in clinic EVAL (never on the worklist), deleted afterwards.
 | I1 | Empty report text | Refused with a message | Was accepted, extracted and silently produced nothing. Now "report text is empty or too short to read" and nothing lands | FIXED |
 | I2 | Report in Spanish (8 mm solid nodule, CT in 6 to 12 months) | Loop as for English | LUNG_NODULE 8 mm, tier 2, OPEN | PASS |
 | I3 | Two addenda: the second says the "nodule" is a vessel, no follow-up | No loop | No loop opened | PASS |
-| I4 | 0 mm nodule with "follow-up CT in 12 months" | No guideline follow-up; flagged | Loop opened (the radiologist's recommendation is followed) with QA flag "Radiologist action CT_CHEST differs from guideline NONE". There is no size plausibility check | KNOWN LIMIT |
-| I5 | 999 mm nodule | Flagged as implausible | Tier 1 loop, no flag. A size plausibility check would be a rule change, which this pass did not make | KNOWN LIMIT |
+| I4 | 0 mm nodule with "follow-up CT in 12 months" | No guideline follow-up; flagged | Loop opened (the radiologist's recommendation is followed) with QA flag "Radiologist action CT_CHEST differs from guideline NONE". The plausibility flag only covers sizes that are too large (I5), so a 0 mm size is not itself flagged as implausible | KNOWN LIMIT |
+| I5 | 999 mm nodule | Flagged as implausible | Was a tier 1 loop with no flag. Now a QA note (not a rule or tier change) says "Size looks implausible, check the report" for a lung nodule over 60 mm or an aorta over 15 cm; tier and status stay as before. Tested with a 999 mm nodule and a 20 cm aorta (both flagged) and normal sizes (not flagged) in `tests/red_team_intake.sql`. Existing loops: 0 changed (a real 6.8 cm mass in Set A is a chest X-ray "recommend CT" finding, not a nodule, so it is correctly not flagged) | FIXED |
 | I6 | Same report id twice | One row, clear message | One row, but the second call still said "ingested". Now "skipped RRT06: already ingested" | FIXED |
 | I7 | A PDF that is not a radiology report (a cafeteria lunch menu) | Refused | Was parsed and stored as a chest CT for the patient (no loop and no wrong closure, because closing needs AI_FILTER to match the finding, but it would show in Patient 360). Now an AI_FILTER check refuses it: "it does not look like a radiology report - review by hand". The demo outside-report PDF still passes | FIXED |
 | I8 | Report for a patient that does not exist | Refused | Was accepted, extracted, then vanished silently (no patient row, so no loop and no error). Now "unknown patient P77777" | FIXED |
@@ -77,4 +77,4 @@ Test patient P0RT01 in clinic EVAL (never on the worklist), deleted afterwards.
 | --- | --- | --- | --- | --- |
 | H1 | PreToolUse hook and a copilot question containing literal `DROP TABLE` on a curated schema | Allowed (it is text for the agent) | Blocked by the hook. A false positive, but in the safe direction, so left as is | KNOWN LIMIT |
 | T1 | Role test harness | Runs as the role | `snow sql --role` with the named connection still ran as ACCOUNTADMIN, so the first attempt hit real objects (test rows only, all deleted). The test now switches with USE ROLE and refuses to run unless CURRENT_ROLE is the role and ACCOUNTADMIN is not in the session | FIXED |
-| D1 | DEMO_STATE after DEMO_RESET(TRUE) | All PASS | 6 of 7 PASS. `demo_claims_in_share` is 2: payer claims EDEMO001/EDEMO002, loaded on 2026-10-04 before this run. DEMO_RESET only resets the hospital side; the demo-reset skill removes them on the payer account in a separate step, not run here (it deletes rows on the payer account) | KNOWN LIMIT |
+| D1 | DEMO_STATE after DEMO_RESET(TRUE) | All PASS | 6 of 7 PASS. `demo_claims_in_share` is 2: payer claims EDEMO001/EDEMO002, loaded on 2026-10-04 before this run. DEMO_RESET only resets the hospital side; the demo-reset skill removes them on the payer account in a separate step. That payer step was run with the owner's approval in the pre-recording rehearsal (2 EDEMO rows deleted, nothing else) | FIXED |
